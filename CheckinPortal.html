@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upway Drop-off Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --blue-500: #4733FF;
+      --blue-600: #3725E5;
+      --blue-700: #291AB8;
+      --blue-800: #1E1299;
+      --blue-50: #F0EFFF;
+      --green-500: #10B981;
+      --green-100: #D1FAE5;
+      --ink-900: #0E0E14;
+      --ink-700: #2E2E38;
+      --ink-600: #4A4A5A;
+      --ink-500: #717182;
+      --ink-400: #9E9EAF;
+      --ink-300: #D4D4DE;
+      --ink-200: #EAEAEF;
+      --ink-100: #F4F4F6;
+      --ink-50: #FAFAFC;
+      --white: #FFFFFF;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+    body { margin: 0; background: var(--ink-100); color: var(--ink-900); font-variant-numeric: lining-nums tabular-nums; -webkit-font-smoothing: antialiased; }
+    
+    input, textarea, select, button { font-family: inherit; font-variant-numeric: lining-nums tabular-nums; }
+    input:focus, textarea:focus { outline: none; border-color: var(--blue-500); box-shadow: 0 0 0 3px rgba(71,51,255,.15); }
+    ::placeholder { color: var(--ink-400); font-weight: 400; }
+    a { color: var(--blue-500); text-decoration: none; }
+    a:hover { color: var(--blue-700); }
+
+    /* Button utilities */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 16px;
+      height: 40px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: var(--blue-500); color: var(--white); border-color: var(--blue-500); }
+    .btn-primary:hover { background: var(--blue-600); border-color: var(--blue-600); }
+    .btn-secondary { background: var(--white); color: var(--ink-900); border-color: var(--ink-300); }
+    .btn-secondary:hover { border-color: var(--ink-500); background: var(--ink-50); }
+    .btn-ghost { background: transparent; color: var(--blue-500); border-color: transparent; }
+    .btn-ghost:hover { background: var(--blue-50); }
+    .btn-sm { height: 34px; padding: 0 12px; font-size: 13px; border-radius: 8px; }
+    .btn-lg { height: 50px; padding: 0 20px; font-size: 15px; border-radius: 12px; }
+    .btn-block { width: 100%; }
+
+    /* Persistent Header */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      height: 64px;
+      padding: 0 24px;
+      gap: 18px;
+      background: rgba(255,255,255,.94);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--ink-200);
+    }
+    .header-logo { height: 16px; width: auto; display: block; }
+    .header-divider { width: 1px; height: 20px; background: var(--ink-200); }
+    .header-title { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; color: var(--ink-700); }
+    
+    .wh-selector-container { margin-left: auto; position: relative; }
+    .wh-trigger {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--ink-300);
+      border-radius: 10px;
+      background: var(--white);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+      user-select: none;
+    }
+    .wh-trigger:hover { border-color: var(--ink-500); }
+    .wh-dropdown {
+      position: absolute;
+      top: 46px;
+      right: 0;
+      width: 268px;
+      box-sizing: border-box;
+      z-index: 60;
+      background: var(--white);
+      border: 1px solid var(--ink-200);
+      border-radius: 14px;
+      box-shadow: 0 12px 32px rgba(14,14,20,.14);
+      padding: 6px;
+      max-height: 340px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: none;
+    }
+    .wh-dropdown.open { display: block; }
+    .wh-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .wh-item:hover { background: var(--ink-100); }
+
+    /* Screen Container */
+    .screen-view { display: none; }
+    .screen-view.active { display: block; }
+
+    /* Queue Screen */
+    .queue-container { max-width: 1180px; margin: 0 auto; padding: 40px 24px 80px; }
+    .queue-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; flex-wrap: wrap; }
+    .queue-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--blue-500); }
+    .queue-title { margin: 10px 0 0; font-size: 36px; line-height: 1.08; letter-spacing: -0.02em; font-weight: 700; }
+    .queue-address { display: flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 14px; color: var(--ink-600); }
+    .stats-group { display: flex; gap: 36px; }
+    .stat-val { font-size: 30px; line-height: 1; font-weight: 700; letter-spacing: -0.02em; }
+    .stat-label { margin-top: 7px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); }
+
+    .toolbar-row { display: flex; align-items: center; gap: 10px; margin-top: 32px; flex-wrap: wrap; }
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      max-width: 400px;
+      min-width: 260px;
+      height: 44px;
+      padding: 0 14px;
+      background: var(--white);
+      border: 1px solid var(--ink-300);
+      border-radius: 12px;
+    }
+    .search-box input { flex: 1; border: none; background: none; font-size: 14.5px; color: var(--ink-900); outline: none; }
+    
+    .segmented-control { display: flex; gap: 4px; padding: 4px; background: var(--white); border: 1px solid var(--ink-300); border-radius: 12px; }
+    .segment-btn {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--ink-600);
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+    .segment-btn:hover { background: var(--ink-100); }
+    .segment-btn.active { background: var(--blue-500); color: var(--white); }
+
+    .table-card { margin-top: 20px; background: var(--white); border: 1px solid var(--ink-200); border-radius: 20px; overflow: hidden; }
+    .table-grid { display: grid; grid-template-columns: 108px minmax(160px, 1.5fr) minmax(130px, 1fr) 96px 168px; align-items: center; gap: 14px; padding: 16px 22px; border-bottom: 1px solid var(--ink-200); }
+    .table-header { padding: 13px 22px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); }
+    .table-row:hover { background: var(--ink-50); }
+    .table-row.filed-row { background: var(--ink-50); }
+    .table-row.filed-row:hover { background: var(--ink-50); }
+
+    .bike-chip { display: inline-block; padding: 4px 9px; border-radius: 7px; background: var(--blue-50); color: var(--blue-600); font-size: 13px; font-weight: 700; letter-spacing: 0.03em; }
+    .bike-chip.filed { background: var(--ink-200); color: var(--ink-500); }
+
+    /* Form Screen */
+    .form-container { max-width: 1180px; margin: 0 auto; padding: 26px 24px 60px; }
+    .back-link { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; color: var(--ink-600); cursor: pointer; user-select: none; }
+    .back-link:hover { color: var(--blue-500); }
+
+    .form-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; align-items: start; margin-top: 16px; }
+    .cards-stack { display: flex; flex-direction: column; gap: 16px; }
+    .form-card { background: var(--white); border: 1px solid var(--ink-200); border-radius: 20px; padding: 26px 28px 28px; }
+    .card-head { display: flex; align-items: center; gap: 10px; }
+    .step-num { width: 24px; height: 24px; border-radius: 7px; background: var(--blue-50); color: var(--blue-600); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+    .card-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+    .card-meta { margin-left: auto; font-size: 13px; color: var(--ink-500); }
+
+    .input-label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); margin-bottom: 7px; }
+    .tag-manual { padding: 2px 6px; border-radius: 5px; background: var(--ink-100); color: var(--ink-600); font-size: 10.5px; letter-spacing: 0.04em; }
+
+    .input-ctrl {
+      width: 100%;
+      height: 46px;
+      padding: 0 13px;
+      box-sizing: border-box;
+      border: 1px solid var(--ink-300);
+      border-radius: 10px;
+      font-size: 15.5px;
+      color: var(--ink-900);
+      background: var(--white);
+    }
+    .input-ctrl.bike-id-input { font-size: 16px; font-weight: 700; letter-spacing: 0.03em; color: var(--blue-600); text-transform: uppercase; }
+    .input-ctrl.frame-input { letter-spacing: 0.02em; text-transform: uppercase; }
+
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 22px; }
+    .grid-seller { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; margin-top: 22px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 22px; }
+
+    /* Toggle Tile */
+    .acc-tile {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 92px;
+      padding: 14px;
+      box-sizing: border-box;
+      border-radius: 14px;
+      border: 1.5px solid var(--ink-300);
+      background: var(--white);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+    .acc-tile:hover { border-color: var(--ink-500); }
+    .acc-tile.active { border-color: var(--blue-500); background: var(--blue-50); }
+    .tile-top { display: flex; align-items: center; justify-content: space-between; }
+    .tile-icon { color: var(--ink-400); display: flex; }
+    .acc-tile.active .tile-icon { color: var(--blue-600); }
+    .tile-check { width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--ink-300); box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
+    .acc-tile.active .tile-check { border-color: var(--blue-500); background: var(--blue-500); }
+    .tile-label { font-size: 15px; font-weight: 500; color: var(--ink-600); }
+    .acc-tile.active .tile-label { color: var(--blue-800); }
+
+    /* Sticky Summary Panel */
+    .summary-panel { position: sticky; top: 88px; background: var(--white); border: 1px solid var(--ink-200); border-radius: 20px; overflow: hidden; }
+    .summary-head { padding: 22px 22px 20px; border-bottom: 1px solid var(--ink-200); }
+    .summary-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); }
+    .summary-bike-name { margin-top: 10px; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; word-break: break-word; }
+    .summary-quote-row { display: flex; align-items: baseline; gap: 8px; margin-top: 14px; }
+    .summary-quote { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+    .summary-quote-sub { font-size: 13px; color: var(--ink-500); }
+
+    .summary-body { padding: 18px 22px; }
+    .summary-kv-row { display: flex; align-items: baseline; gap: 14px; padding: 7px 0; }
+    .summary-k { flex: none; width: 108px; font-size: 12.5px; color: var(--ink-500); }
+    .summary-v { flex: 1; font-size: 13.5px; text-align: right; word-break: break-word; }
+
+    .summary-foot { padding: 16px 22px 22px; border-top: 1px solid var(--ink-200); display: flex; flex-direction: column; gap: 10px; }
+    .summary-subtext { font-size: 12.5px; color: var(--ink-500); text-align: center; }
+
+    /* Document Screen */
+    .doc-bg { background: var(--ink-200); min-height: calc(100vh - 64px); }
+    .doc-action-bar { position: sticky; top: 64px; z-index: 20; background: var(--white); border-bottom: 1px solid var(--ink-200); }
+    .doc-action-inner { max-width: 1180px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    
+    .green-pill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 999px; background: var(--green-100); color: #0B7A48; font-size: 13px; font-weight: 500; }
+    .doc-actions-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+    .doc-pages-wrap { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 36px 24px 72px; }
+    .a4-page {
+      width: 794px;
+      min-height: 1123px;
+      box-sizing: border-box;
+      background: var(--white);
+      box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 16px 36px rgba(14,14,20,.10);
+      position: relative;
+      padding: 60px 64px 52px;
+    }
+    .a4-top-bar { position: absolute; top: 0; left: 0; right: 0; height: 5px; background: var(--blue-500); }
+    .a4-header { display: flex; align-items: flex-start; justify-content: space-between; }
+    .a4-logo { height: 20px; width: auto; display: block; }
+    .a4-wh-info { text-align: right; font-size: 11px; line-height: 1.5; color: var(--ink-500); }
+    .a4-wh-title { font-weight: 700; letter-spacing: 0.06em; color: var(--ink-900); }
+
+    .sec-rule-header { display: flex; align-items: center; gap: 10px; margin-top: 34px; }
+    .sec-num { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--blue-500); }
+    .sec-title { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-900); }
+    .sec-line { flex: 1; height: 1px; background: var(--ink-200); }
+
+    .field-pair { padding-bottom: 10px; border-bottom: 1px solid var(--ink-200); }
+    .field-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-500); text-transform: uppercase; }
+    .field-val { margin-top: 7px; font-size: 16px; color: var(--ink-900); word-break: break-word; }
+    .field-val.blue-highlight { font-weight: 700; letter-spacing: 0.03em; color: var(--blue-600); }
+
+    .a4-footer { position: absolute; left: 64px; right: 64px; bottom: 36px; display: flex; justify-content: space-between; font-size: 10px; color: var(--ink-500); }
+
+    /* Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .loading-overlay.active { display: flex; }
+    .loading-card {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 32px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 20px 30px rgba(0,0,0,0.25);
+      text-align: center;
+      max-width: 380px;
+    }
+    .spinner-ring {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--blue-50);
+      border-top-color: var(--blue-500);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* Responsiveness */
+    @media (max-width: 860px) {
+      .a4-page { width: 100%; min-height: auto; padding: 32px 20px 48px; }
+      .form-layout { grid-template-columns: 1fr; }
+      .summary-panel { position: static; margin-top: 20px; }
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-seller { grid-template-columns: 1fr; }
+    }
+
+    /* Print Styles */
+    @media print {
+      body { background: #fff !important; }
+      .no-print, .app-header, .doc-action-bar { display: none !important; }
+      .doc-bg { background: none !important; min-height: auto !important; }
+      .doc-pages-wrap { padding: 0 !important; gap: 0 !important; }
+      .a4-page {
+        box-shadow: none !important;
+        margin: 0 !important;
+        width: 100% !important;
+        min-height: 100vh !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        padding: 50px 50px 40px !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PERSISTENT HEADER -->
+  <header class="app-header no-print">
+    <!-- Upway Logo SVG -->
+    <svg class="header-logo" viewBox="0 0 148 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14.2 0H20.4V14.8C20.4 19.8 16.6 23.4 10.2 23.4C3.8 23.4 0 19.8 0 14.8V0H6.2V14.6C6.2 17.2 7.8 18.7 10.2 18.7C12.6 18.7 14.2 17.2 14.2 14.6V0Z" fill="#4733FF"/>
+      <path d="M24.8 6.4H30.6V8.6C31.7 7.1 33.7 6.2 36.2 6.2C41.2 6.2 44.4 10.1 44.4 15.1C44.4 20.1 41.2 24 36.2 24C33.7 24 31.7 23.1 30.6 21.6V30H24.8V6.4ZM34.5 19.3C37.3 19.3 38.6 17.6 38.6 15.1C38.6 12.6 37.3 10.9 34.5 10.9C31.7 10.9 30.4 12.6 30.4 15.1C30.4 17.6 31.7 19.3 34.5 19.3Z" fill="#4733FF"/>
+      <path d="M48.2 6.4H54L57.2 17.4L60.5 6.4H65.8L69.1 17.4L72.3 6.4H78.1L72.8 23.4H66.8L63.2 11.9L59.6 23.4H53.6L48.2 6.4Z" fill="#4733FF"/>
+      <path d="M89.4 6.4H95.2V23.4H89.4V21.4C88.2 23 86.2 24 83.6 24C78.9 24 76 20.4 76 15.2C76 10 78.9 6.4 83.6 6.4C86.2 6.4 88.2 7.4 89.4 9V6.4ZM85.5 19.3C88.2 19.3 89.5 17.6 89.5 15.2C89.5 12.8 88.2 11.1 85.5 11.1C82.8 11.1 81.5 12.8 81.5 15.2C81.5 17.6 82.8 19.3 85.5 19.3Z" fill="#4733FF"/>
+      <path d="M99.5 6.4H105.5L109.8 16.3L114.1 6.4H120.1L111.8 23.2L107.5 31.8H101.8L105.8 23.7L99.5 6.4Z" fill="#4733FF"/>
+    </svg>
+
+    <div class="header-divider"></div>
+    <div class="header-title">Drop-off desk</div>
+
+    <!-- Warehouse Selector -->
+    <div class="wh-selector-container" data-wh="1">
+      <div class="wh-trigger" id="wh-trigger-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ink-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"></path><circle cx="12" cy="10" r="2.6"></circle></svg>
+        <span id="wh-label">Berlin</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+      </div>
+
+      <div class="wh-dropdown" id="wh-dropdown-menu">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </header>
+
+  <!-- SCREEN 1: QUEUE (SCHEDULE) VIEW -->
+  <main id="screen-queue" class="screen-view active">
+    <div class="queue-container">
+      <div class="queue-head">
+        <div>
+          <div class="queue-eyebrow">Today's schedule</div>
+          <h1 class="queue-title" id="queue-date-title">Monday, 10 August</h1>
+          <div class="queue-address">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-400)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"></path><circle cx="12" cy="10" r="2.6"></circle></svg>
+            <span id="queue-wh-address">Alexander-Meißner-Straße 77D · 12526 Berlin</span>
+          </div>
+        </div>
+
+        <div class="stats-group">
+          <div>
+            <div class="stat-val" id="cnt-scheduled">0</div>
+            <div class="stat-label">Scheduled</div>
+          </div>
+          <div>
+            <div class="stat-val" style="color: var(--blue-500);" id="cnt-pending">0</div>
+            <div class="stat-label">Awaiting check</div>
+          </div>
+          <div>
+            <div class="stat-val" style="color: var(--green-500);" id="cnt-filed">0</div>
+            <div class="stat-label">Filed</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar-row">
+        <div class="search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-500)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+          <input type="text" id="search-input" placeholder="Search bike ID, customer or model">
+        </div>
+
+        <div class="segmented-control">
+          <div class="segment-btn active" data-period="today">Today</div>
+          <div class="segment-btn" data-period="next">Next 10 days</div>
+          <div class="segment-btn" data-period="past">Past 10 days</div>
+        </div>
+      </div>
+
+      <!-- Schedule Table -->
+      <div class="table-card">
+        <div class="table-grid table-header">
+          <div>Bike ID</div>
+          <div>Bike</div>
+          <div>Customer</div>
+          <div>Quote</div>
+          <div></div>
+        </div>
+
+        <div id="table-rows-container">
+          <!-- Rows rendered dynamically -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- SCREEN 2: CHECK-IN FORM VIEW -->
+  <main id="screen-form" class="screen-view">
+    <div class="form-container">
+      <div class="back-link" id="btn-back-queue">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
+        Back to schedule
+      </div>
+
+      <div class="form-layout">
+        <!-- Left Cards Stack -->
+        <div class="cards-stack">
+          
+          <!-- Card 1: Seller & appointment -->
+          <div class="form-card">
+            <div class="card-head">
+              <span class="step-num">1</span>
+              <span class="card-title">Seller &amp; appointment</span>
+            </div>
+
+            <div class="grid-seller">
+              <div>
+                <label class="input-label">Bike ID</label>
+                <input type="text" id="input-bike-id" class="input-ctrl bike-id-input">
+              </div>
+              <div>
+                <label class="input-label">Name Verkäufer*in</label>
+                <input type="text" id="input-seller" class="input-ctrl" placeholder="Full name">
+                <div id="seller-changed-hint" style="display: none; align-items: center; gap: 6px; margin-top: 7px; font-size: 12.5px; color: var(--ink-500);">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--blue-500)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>
+                  Booked under <span id="booked-seller-name" style="font-weight: 500;"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Bike data -->
+          <div class="form-card">
+            <div class="card-head">
+              <span class="step-num">2</span>
+              <span class="card-title">Bike data</span>
+            </div>
+
+            <div class="grid-2">
+              <div>
+                <label class="input-label">Marke</label>
+                <input type="text" id="input-brand" class="input-ctrl" placeholder="Stromer">
+              </div>
+              <div>
+                <label class="input-label">Modell</label>
+                <input type="text" id="input-model" class="input-ctrl" placeholder="ST3">
+              </div>
+              <div>
+                <label class="input-label">Kilometerstand</label>
+                <input type="text" id="input-mileage" class="input-ctrl" placeholder="1240 km">
+              </div>
+              <div>
+                <label class="input-label">
+                  Rahmennummer
+                  <span class="tag-manual">MANUAL</span>
+                </label>
+                <input type="text" id="input-frame" class="input-ctrl frame-input" placeholder="Read off the frame">
+              </div>
+
+              <!-- Non-Berlin Fields -->
+              <div class="non-berlin-field" style="display: none;">
+                <label class="input-label">Jahr</label>
+                <input type="text" id="input-year" class="input-ctrl" placeholder="2022">
+              </div>
+              <div class="non-berlin-field" style="display: none;">
+                <label class="input-label">Batteriekapazität</label>
+                <input type="text" id="input-battery" class="input-ctrl" placeholder="983 Wh">
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Handover checklist -->
+          <div class="form-card">
+            <div class="card-head">
+              <span class="step-num">3</span>
+              <span class="card-title">Handover</span>
+              <span class="card-meta" id="handover-meta-cnt">2 of 4 handed over</span>
+            </div>
+
+            <div class="grid-4">
+              <!-- Tile 1: Akku -->
+              <div class="acc-tile active" data-acc="akku">
+                <div class="tile-top">
+                  <span class="tile-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2"></rect><path d="M22 11v2"></path><path d="M6 11v2M10 11v2"></path></svg>
+                  </span>
+                  <span class="tile-check">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+                  </span>
+                </div>
+                <span class="tile-label">Akku</span>
+              </div>
+
+              <!-- Tile 2: Ladegerät -->
+              <div class="acc-tile active" data-acc="lade">
+                <div class="tile-top">
+                  <span class="tile-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6M15 2v6"></path><rect x="6" y="8" width="12" height="7" rx="2"></rect><path d="M12 15v7"></path></svg>
+                  </span>
+                  <span class="tile-check">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+                  </span>
+                </div>
+                <span class="tile-label">Ladegerät</span>
+              </div>
+
+              <!-- Tile 3: Schlüssel -->
+              <div class="acc-tile" data-acc="schl">
+                <div class="tile-top">
+                  <span class="tile-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4.5"></circle><path d="M11.2 11.2L21 21M17.5 17.5l2-2M14.5 14.5l2-2"></path></svg>
+                  </span>
+                  <span class="tile-check"></span>
+                </div>
+                <span class="tile-label">Schlüssel</span>
+              </div>
+
+              <!-- Tile 4: Display -->
+              <div class="acc-tile" data-acc="disp">
+                <div class="tile-top">
+                  <span class="tile-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+                  </span>
+                  <span class="tile-check"></span>
+                </div>
+                <span class="tile-label">Display</span>
+              </div>
+            </div>
+
+            <!-- Notizen -->
+            <div style="margin-top: 18px;">
+              <label class="input-label">Notizen</label>
+              <textarea id="input-notes" style="width: 100%; min-height: 96px; padding: 12px 13px; box-sizing: border-box; border: 1px solid var(--ink-300); border-radius: 10px; font-size: 15px; line-height: 1.5; resize: vertical; background: var(--white);" placeholder="Zustand, Kratzer, fehlende Teile …"></textarea>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column: Summary Panel -->
+        <div class="summary-panel">
+          <div class="summary-head">
+            <div class="summary-eyebrow">Drop-off</div>
+            <div class="summary-bike-name" id="sum-bike-name">Stromer ST3</div>
+            <div class="summary-quote-row">
+              <span class="summary-quote" id="sum-quote-val">€ 1.890</span>
+              <span class="summary-quote-sub">quoted</span>
+            </div>
+          </div>
+
+          <div class="summary-body" id="summary-rows-container">
+            <!-- Dynamic Key/Value List -->
+          </div>
+
+          <div class="summary-foot">
+            <button class="btn btn-primary btn-lg btn-block" id="btn-generate-beleg">Generate beleg</button>
+            <div class="summary-subtext" id="sum-drive-folder">Saved to Drive · 2026 › Berlin</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- SCREEN 3: DOCUMENT (EINLIEFERUNGSBELEG) VIEW -->
+  <main id="screen-doc" class="screen-view doc-bg">
+    <!-- Action Bar -->
+    <div class="doc-action-bar no-print">
+      <div class="doc-action-inner">
+        <div class="back-link" id="btn-doc-back">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
+          Back to schedule
+        </div>
+
+        <div class="green-pill">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+          <span id="doc-filename-pill">Beleg RK2EP9.pdf</span>
+        </div>
+
+        <div class="doc-actions-right">
+          <button class="btn btn-secondary" id="btn-doc-edit">Edit details</button>
+          <button class="btn btn-secondary" id="btn-doc-print">Print</button>
+          <button class="btn btn-primary" id="btn-doc-save">Save to Drive &amp; close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Document A4 Sheets -->
+    <div class="doc-pages-wrap">
+      
+      <!-- PAGE 1 -->
+      <div class="a4-page">
+        <div class="a4-top-bar"></div>
+        <div class="a4-header">
+          <!-- Logo -->
+          <svg class="a4-logo" viewBox="0 0 148 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M14.2 0H20.4V14.8C20.4 19.8 16.6 23.4 10.2 23.4C3.8 23.4 0 19.8 0 14.8V0H6.2V14.6C6.2 17.2 7.8 18.7 10.2 18.7C12.6 18.7 14.2 17.2 14.2 14.6V0Z" fill="#0E0E14"/>
+            <path d="M24.8 6.4H30.6V8.6C31.7 7.1 33.7 6.2 36.2 6.2C41.2 6.2 44.4 10.1 44.4 15.1C44.4 20.1 41.2 24 36.2 24C33.7 24 31.7 23.1 30.6 21.6V30H24.8V6.4ZM34.5 19.3C37.3 19.3 38.6 17.6 38.6 15.1C38.6 12.6 37.3 10.9 34.5 10.9C31.7 10.9 30.4 12.6 30.4 15.1C30.4 17.6 31.7 19.3 34.5 19.3Z" fill="#0E0E14"/>
+            <path d="M48.2 6.4H54L57.2 17.4L60.5 6.4H65.8L69.1 17.4L72.3 6.4H78.1L72.8 23.4H66.8L63.2 11.9L59.6 23.4H53.6L48.2 6.4Z" fill="#0E0E14"/>
+            <path d="M89.4 6.4H95.2V23.4H89.4V21.4C88.2 23 86.2 24 83.6 24C78.9 24 76 20.4 76 15.2C76 10 78.9 6.4 83.6 6.4C86.2 6.4 88.2 7.4 89.4 9V6.4ZM85.5 19.3C88.2 19.3 89.5 17.6 89.5 15.2C89.5 12.8 88.2 11.1 85.5 11.1C82.8 11.1 81.5 12.8 81.5 15.2C81.5 17.6 82.8 19.3 85.5 19.3Z" fill="#0E0E14"/>
+            <path d="M99.5 6.4H105.5L109.8 16.3L114.1 6.4H120.1L111.8 23.2L107.5 31.8H101.8L105.8 23.7L99.5 6.4Z" fill="#0E0E14"/>
+          </svg>
+
+          <div class="a4-wh-info">
+            <div class="a4-wh-title" id="doc-wh-name-p1">UPCENTER BERLIN</div>
+            <div id="doc-wh-address-p1">Alexander-Meißner-Straße 77D · 12526 Berlin</div>
+          </div>
+        </div>
+
+        <h1 style="margin: 40px 0 0; font-size: 28px; line-height: 1.12; letter-spacing: -0.02em; font-weight: 700;">Einlieferungsbeleg</h1>
+        <p style="margin: 8px 0 0; font-size: 13px; color: var(--ink-600);">Nachweis über die physische Abgabe eines E-Bikes zum Ankauf</p>
+
+        <!-- Section 01 -->
+        <div class="sec-rule-header" style="margin-top: 38px;">
+          <span class="sec-num">01</span>
+          <span class="sec-title">VERKÄUFER*IN</span>
+          <span class="sec-line"></span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 18px;">
+          <div class="field-pair">
+            <div class="field-lbl">BIKE-ID</div>
+            <div class="field-val blue-highlight" id="doc-bike-id">RK2EP9</div>
+          </div>
+          <div class="field-pair">
+            <div class="field-lbl">NAME VERKÄUFER*IN</div>
+            <div class="field-val" id="doc-seller">Lena Hoffmann</div>
+          </div>
+        </div>
+
+        <!-- Section 02 -->
+        <div class="sec-rule-header">
+          <span class="sec-num">02</span>
+          <span class="sec-title">FAHRZEUGDATEN</span>
+          <span class="sec-line"></span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; margin-top: 18px;" id="doc-sec2-grid">
+          <div class="field-pair">
+            <div class="field-lbl">MARKE &amp; MODELL</div>
+            <div class="field-val" id="doc-brand-model">Stromer ST3</div>
+          </div>
+          <div class="field-pair">
+            <div class="field-lbl">KILOMETERSTAND</div>
+            <div class="field-val" id="doc-mileage">1.240 km</div>
+          </div>
+          <div class="field-pair">
+            <div class="field-lbl">RAHMENNUMMER</div>
+            <div class="field-val" id="doc-frame">—</div>
+          </div>
+          <div class="field-pair doc-non-berlin-cell" style="display: none;">
+            <div class="field-lbl">JAHR</div>
+            <div class="field-val" id="doc-year">2022</div>
+          </div>
+          <div class="field-pair doc-non-berlin-cell" style="display: none;">
+            <div class="field-lbl">BATTERIEKAPAZITÄT</div>
+            <div class="field-val" id="doc-battery">983 Wh</div>
+          </div>
+        </div>
+
+        <!-- Section 03 -->
+        <div class="sec-rule-header">
+          <span class="sec-num">03</span>
+          <span class="sec-title">ÜBERGABE-CHECKLISTE</span>
+          <span class="sec-line"></span>
+        </div>
+        <div style="margin-top: 18px; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-500);">ZUBEHÖR</div>
+        <div style="display: flex; gap: 30px; margin-top: 12px;" id="doc-acc-checkboxes">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <div style="margin-top: 24px; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-500);">NOTIZEN</div>
+        <div id="doc-notes-box" style="margin-top: 9px; min-height: 120px; padding: 14px 16px; box-sizing: border-box; border: 1px solid var(--ink-300); border-radius: 8px; font-size: 13.5px; line-height: 1.55; color: var(--ink-900); white-space: pre-wrap;">—</div>
+
+        <div class="a4-footer">
+          <span>Upway · Einlieferungsbeleg <span class="doc-bike-id-footer">RK2EP9</span></span>
+          <span>Seite 1 / 2</span>
+        </div>
+      </div>
+
+      <!-- PAGE 2 -->
+      <div class="a4-page">
+        <div class="a4-top-bar"></div>
+        <div class="a4-header">
+          <!-- Logo -->
+          <svg class="a4-logo" viewBox="0 0 148 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M14.2 0H20.4V14.8C20.4 19.8 16.6 23.4 10.2 23.4C3.8 23.4 0 19.8 0 14.8V0H6.2V14.6C6.2 17.2 7.8 18.7 10.2 18.7C12.6 18.7 14.2 17.2 14.2 14.6V0Z" fill="#0E0E14"/>
+            <path d="M24.8 6.4H30.6V8.6C31.7 7.1 33.7 6.2 36.2 6.2C41.2 6.2 44.4 10.1 44.4 15.1C44.4 20.1 41.2 24 36.2 24C33.7 24 31.7 23.1 30.6 21.6V30H24.8V6.4ZM34.5 19.3C37.3 19.3 38.6 17.6 38.6 15.1C38.6 12.6 37.3 10.9 34.5 10.9C31.7 10.9 30.4 12.6 30.4 15.1C30.4 17.6 31.7 19.3 34.5 19.3Z" fill="#0E0E14"/>
+            <path d="M48.2 6.4H54L57.2 17.4L60.5 6.4H65.8L69.1 17.4L72.3 6.4H78.1L72.8 23.4H66.8L63.2 11.9L59.6 23.4H53.6L48.2 6.4Z" fill="#0E0E14"/>
+            <path d="M89.4 6.4H95.2V23.4H89.4V21.4C88.2 23 86.2 24 83.6 24C78.9 24 76 20.4 76 15.2C76 10 78.9 6.4 83.6 6.4C86.2 6.4 88.2 7.4 89.4 9V6.4ZM85.5 19.3C88.2 19.3 89.5 17.6 89.5 15.2C89.5 12.8 88.2 11.1 85.5 11.1C82.8 11.1 81.5 12.8 81.5 15.2C81.5 17.6 82.8 19.3 85.5 19.3Z" fill="#0E0E14"/>
+            <path d="M99.5 6.4H105.5L109.8 16.3L114.1 6.4H120.1L111.8 23.2L107.5 31.8H101.8L105.8 23.7L99.5 6.4Z" fill="#0E0E14"/>
+          </svg>
+
+          <div class="a4-wh-info">
+            <div class="a4-wh-title" id="doc-wh-name-p2">UPCENTER BERLIN</div>
+            <div id="doc-wh-address-p2">Alexander-Meißner-Straße 77D · 12526 Berlin</div>
+          </div>
+        </div>
+
+        <!-- Section 04 -->
+        <div class="sec-rule-header" style="margin-top: 40px;">
+          <span class="sec-num">04</span>
+          <span class="sec-title">RECHTLICHE HINWEISE</span>
+          <span class="sec-line"></span>
+        </div>
+        <p style="margin: 18px 0 0; font-size: 13px; line-height: 1.6; color: var(--ink-900);">Mit der Abgabe im UpCenter <span id="doc-wh-city-text">Berlin</span> erkennt der/die Verkäufer*in folgende Bedingungen an:</p>
+
+        <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: grid; grid-template-columns: 20px 1fr; gap: 10px;">
+            <span style="font-size: 13px; font-weight: 700; color: var(--blue-500);">1.</span>
+            <p style="margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-900);"><strong style="font-weight: 700;">Technische Tiefenprüfung:</strong> Dieser Beleg bestätigt nur den Erhalt der Hardware. Die finale technische Prüfung und Bestätigung des Ankaufspreises erfolgen zeitversetzt durch unsere Experten (§ III AGB).</p>
+          </div>
+          <div style="display: grid; grid-template-columns: 20px 1fr; gap: 10px;">
+            <span style="font-size: 13px; font-weight: 700; color: var(--blue-500);">2.</span>
+            <p style="margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-900);"><strong style="font-weight: 700;">Eigentumsvorbehalt (§ VIII):</strong> Das E-Bike bleibt bis zur vollständigen Auszahlung des Kaufpreises durch Upway im Eigentum des/der Verkäufer*in.</p>
+          </div>
+          <div style="display: grid; grid-template-columns: 20px 1fr; gap: 10px;">
+            <span style="font-size: 13px; font-weight: 700; color: var(--blue-500);">3.</span>
+            <p style="margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-900);"><strong style="font-weight: 700;">Akku-Sicherheit (§ IX):</strong> Der/die Verkäufer*in versichert, dass weder der Akku noch der Motor beschädigt oder technisch manipuliert wurden.</p>
+          </div>
+        </div>
+
+        <!-- Section 05 -->
+        <div class="sec-rule-header" style="margin-top: 40px;">
+          <span class="sec-num">05</span>
+          <span class="sec-title">BESTÄTIGUNG DER EINLIEFERUNG</span>
+          <span class="sec-line"></span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 18px;">
+          <div class="field-pair">
+            <div class="field-lbl">DATUM</div>
+            <div class="field-val" id="doc-datum">10.08.2026</div>
+          </div>
+          <div class="field-pair">
+            <div class="field-lbl">UHRZEIT</div>
+            <div class="field-val" id="doc-uhrzeit">14:30</div>
+          </div>
+        </div>
+
+        <!-- Signature -->
+        <div style="margin-top: 52px; width: 300px;">
+          <div style="height: 1px; background: var(--ink-700);"></div>
+          <div style="margin-top: 9px; font-size: 10.5px; color: var(--ink-500);">Unterschrift Upway (Annahme)</div>
+        </div>
+
+        <div style="margin-top: 52px; height: 1px; background: var(--ink-200);"></div>
+
+        <!-- Thank you & Google review badge -->
+        <div style="display: flex; align-items: center; gap: 28px; margin-top: 28px;">
+          <div style="flex: 1;">
+            <div style="font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">Danke für Ihr Vertrauen!</div>
+            <p style="margin: 9px 0 0; max-width: 320px; font-size: 13px; line-height: 1.6; color: var(--ink-600);">Wir möchten uns stetig verbessern. Hat heute alles geklappt? Dann freuen wir uns über Ihre Bewertung.</p>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <!-- Google Review Badge Graphic -->
+            <div style="width: 124px; height: 72px; border: 1px solid var(--ink-300); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--white);">
+              <div style="font-size: 11px; font-weight: 700; color: var(--ink-900); display: flex; align-items: center; gap: 4px;">
+                <span style="color: #4285F4; font-weight: 800;">G</span><span style="color: #EA4335;">o</span><span style="color: #FBBC05;">o</span><span style="color: #4285F4;">g</span><span style="color: #34A853;">l</span><span style="color: #EA4335;">e</span>
+                <span>Review</span>
+              </div>
+              <div style="color: #FBBC05; font-size: 12px; margin-top: 3px;">★★★★★</div>
+              <div style="font-size: 10px; color: var(--ink-500); margin-top: 2px;">4.9 · Upway</div>
+            </div>
+
+            <!-- Dynamic QR Code Container -->
+            <div style="width: 88px; height: 88px; border: 1px solid var(--ink-300); border-radius: 8px; padding: 4px; background: var(--white); display: flex; align-items: center; justify-content: center;" id="doc-qr-container">
+              <!-- QR Code Img rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <div class="a4-footer">
+          <span>Upway · Einlieferungsbeleg <span class="doc-bike-id-footer">RK2EP9</span></span>
+          <span>Seite 2 / 2</span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- LOADING OVERLAY -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-card">
+      <div class="spinner-ring"></div>
+      <div style="font-size: 15px; font-weight: 700; color: var(--ink-900);" id="loading-msg">Lade Daten ...</div>
+      <div style="font-size: 12px; color: var(--ink-500);">Bitte einen Moment gedulden</div>
+    </div>
+  </div>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    // --- MASTER DATA & SPEC CONSTANTS ---
+    const WAREHOUSES = [
+      { name: "Berlin", city: "Alexander-Meißner-Straße 77D · 12526 Berlin", reviewUrl: "https://g.page/r/upway-berlin/review" },
+      { name: "Düsseldorf", city: "Höherweg 271 · 40231 Düsseldorf", reviewUrl: "https://g.page/r/upway-dusseldorf/review" },
+      { name: "Stuttgart", city: "Hauptstätter Straße 149 · 70178 Stuttgart", reviewUrl: "https://g.page/r/upway-stuttgart/review" },
+      { name: "Amsterdam", city: "Contactweg 47 · 1014 AN Amsterdam", reviewUrl: "https://g.page/r/upway-amsterdam/review" },
+      { name: "Antwerp", city: "Noorderlaan 133 · 2030 Antwerpen", reviewUrl: "https://g.page/r/upway-antwerp/review" },
+      { name: "Gennevilliers", city: "12 Rue des Chardons · 92230 Gennevilliers", reviewUrl: "https://g.page/r/upway-gennevilliers/review" },
+      { name: "Los Angeles", city: "1933 S Broadway · Los Angeles, CA 90007", reviewUrl: "https://g.page/r/upway-la/review" },
+      { name: "New York", city: "37-24 24th St · Long Island City, NY 11101", reviewUrl: "https://g.page/r/upway-ny/review" }
+    ];
+
+    const MOCK_APPTS = [
+      { time: "09:00", bikeId: "RK2EP9", brand: "Stromer", model: "ST3", year: "2022", mileage: "1240", customer: "Lena Hoffmann", quote: "€ 1.890", status: "filed", email: "lena@example.com" },
+      { time: "09:45", bikeId: "RK2FP1", brand: "Riese & Müller", model: "Charger3 GT", year: "2021", mileage: "3480", customer: "Tobias Wagner", quote: "€ 2.240", status: "pending", email: "tobias@example.com" },
+      { time: "10:30", bikeId: "RK2GU8", brand: "Cube", model: "Reaction Hybrid Pro", year: "2023", mileage: "620", customer: "Miriam Sanders", quote: "€ 1.150", status: "pending", email: "miriam@example.com" },
+      { time: "11:15", bikeId: "RK2JP9", brand: "VanMoof", model: "S3", year: "2020", mileage: "5910", customer: "Jonas Krüger", quote: "€ 740", status: "pending", email: "jonas@example.com" },
+      { time: "13:00", bikeId: "RK2KU4", brand: "Gazelle", model: "Ultimate C380", year: "2022", mileage: "2130", customer: "Aylin Demir", quote: "€ 1.630", status: "filed", email: "aylin@example.com" },
+      { time: "14:30", bikeId: "RK2LM2", brand: "Specialized", model: "Turbo Vado 4.0", year: "2023", mileage: "890", customer: "Paul Neumann", quote: "€ 2.010", status: "pending", email: "paul@example.com" }
+    ];
+
+    const ACC_ITEMS = [
+      { key: "akku", de: "Akku" },
+      { key: "lade", de: "Ladegerät" },
+      { key: "schl", de: "Schlüssel" },
+      { key: "disp", de: "Display" }
+    ];
+
+    // --- APPLICATION STATE ---
+    let state = {
+      screen: "queue",
+      warehouse: "Berlin",
+      whOpen: false,
+      query: "",
+      period: "today",
+      appointments: [],
+      selectedIndex: -1,
+      form: { bikeId: "", seller: "", brand: "", model: "", mileage: "", frame: "", year: "", battery: "", notes: "", datum: "", uhrzeit: "" },
+      acc: { akku: true, lade: true, schl: false, disp: false },
+      filed: {},
+      bookedName: "",
+      loading: false
+    };
+
+    // --- UTILITIES ---
+    function pad(n) { return String(n).padStart(2, "0"); }
+    
+    function getNowGerman() {
+      const d = new Date();
+      return {
+        datum: pad(d.getDate()) + "." + pad(d.getMonth() + 1) + "." + d.getFullYear(),
+        uhrzeit: pad(d.getHours()) + ":" + pad(d.getMinutes())
+      };
+    }
+
+    function formatNumberDE(num) {
+      if (!num && num !== 0) return "";
+      const clean = String(num).replace(/[^0-9]/g, "");
+      if (!clean) return "";
+      return Number(clean).toLocaleString("de-DE");
+    }
+
+    function getWhRecord(whName) {
+      return WAREHOUSES.find(w => w.name.toLowerCase() === (whName || "").toLowerCase()) || WAREHOUSES[0];
+    }
+
+    // --- INITIALIZATION ---
+    document.addEventListener("DOMContentLoaded", function() {
+      setupEventListeners();
+      loadScheduleData();
+    });
+
+    function setupEventListeners() {
+      // Warehouse selector toggle
+      const trigger = document.getElementById("wh-trigger-btn");
+      trigger.addEventListener("click", function(e) {
+        e.stopPropagation();
+        state.whOpen = !state.whOpen;
+        renderHeader();
+      });
+
+      // Close dropdown on click outside
+      document.addEventListener("click", function(e) {
+        if (state.whOpen && !e.target.closest("[data-wh]")) {
+          state.whOpen = false;
+          renderHeader();
+        }
+      });
+
+      document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape" && state.whOpen) {
+          state.whOpen = false;
+          renderHeader();
+        }
+      });
+
+      // Search input
+      const searchInput = document.getElementById("search-input");
+      searchInput.addEventListener("input", function(e) {
+        state.query = e.target.value;
+        renderQueueRows();
+      });
+
+      // Period segments
+      const segments = document.querySelectorAll(".segment-btn");
+      segments.forEach(btn => {
+        btn.addEventListener("click", function() {
+          segments.forEach(s => s.classList.remove("active"));
+          this.classList.add("active");
+          state.period = this.getAttribute("data-period");
+          loadScheduleData();
+        });
+      });
+
+      // Navigation links
+      document.getElementById("btn-back-queue").addEventListener("click", () => switchScreen("queue"));
+      document.getElementById("btn-doc-back").addEventListener("click", () => switchScreen("queue"));
+      document.getElementById("btn-doc-edit").addEventListener("click", () => switchScreen("form"));
+
+      // Print button
+      document.getElementById("btn-doc-print").addEventListener("click", () => window.print());
+
+      // Save to Drive & Close button
+      document.getElementById("btn-doc-save").addEventListener("click", handleSaveToDriveAndClose);
+
+      // Generate Beleg button
+      document.getElementById("btn-generate-beleg").addEventListener("click", handleGenerateBeleg);
+
+      // Accessory tiles
+      document.querySelectorAll(".acc-tile").forEach(tile => {
+        tile.addEventListener("click", function() {
+          const key = this.getAttribute("data-acc");
+          state.acc[key] = !state.acc[key];
+          renderFormCard3();
+          renderSummaryPanel();
+        });
+      });
+
+      // Form input bindings
+      bindInput("input-bike-id", "bikeId", true);
+      bindInput("input-seller", "seller");
+      bindInput("input-brand", "brand");
+      bindInput("input-model", "model");
+      bindInput("input-mileage", "mileage");
+      bindInput("input-frame", "frame", true);
+      bindInput("input-year", "year");
+      bindInput("input-battery", "battery");
+
+      const notesCtrl = document.getElementById("input-notes");
+      notesCtrl.addEventListener("input", function(e) {
+        state.form.notes = e.target.value;
+      });
+    }
+
+    function bindInput(id, key, uppercase = false) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("input", function(e) {
+        let val = e.target.value;
+        if (uppercase) val = val.toUpperCase();
+        state.form[key] = val;
+        
+        if (key === "seller") {
+          const hint = document.getElementById("seller-changed-hint");
+          if (hint) hint.style.display = (val !== state.bookedName && state.bookedName) ? "flex" : "none";
+        }
+
+        renderSummaryPanel();
+      });
+    }
+
+    // --- SCREEN NAVIGATION ---
+    function switchScreen(screenName) {
+      state.screen = screenName;
+      state.whOpen = false;
+      
+      document.querySelectorAll(".screen-view").forEach(s => s.classList.remove("active"));
+      const target = document.getElementById("screen-" + screenName);
+      if (target) target.classList.add("active");
+
+      renderHeader();
+      
+      if (screenName === "queue") {
+        renderQueueScreen();
+      } else if (screenName === "form") {
+        renderFormScreen();
+      } else if (screenName === "doc") {
+        renderDocScreen();
+      }
+      
+      window.scrollTo(0, 0);
+    }
+
+    // --- DATA LOADING ---
+    function loadScheduleData() {
+      showLoading("Lade Terminliste ...");
+      
+      if (typeof google !== "undefined" && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(onDataLoaded)
+          .withFailureHandler(onDataError)
+          .getMetabaseData({
+            warehouse: state.warehouse.toLowerCase(),
+            dateFilter: state.period
+          });
+      } else {
+        // Fallback for standalone preview
+        setTimeout(() => {
+          onDataLoaded({
+            success: true,
+            rows: MOCK_APPTS.map((r, i) => ({
+              rowIndex: i,
+              bikeId: r.bikeId,
+              bikeName: r.brand + " " + r.model,
+              brand: r.brand,
+              model: r.model,
+              year: r.year,
+              customerName: r.customer,
+              quote: r.quote,
+              mileage: r.mileage,
+              isProcessed: state.filed[r.bikeId] || r.status === "filed"
+            }))
+          });
+        }, 300);
+      }
+    }
+
+    function onDataLoaded(res) {
+      hideLoading();
+      if (res && res.rows) {
+        state.appointments = res.rows.map(r => {
+          const isFiled = state.filed[r.bikeId] || r.isProcessed;
+          if (isFiled) state.filed[r.bikeId] = true;
+          return {
+            bikeId: r.bikeId || "",
+            brand: r.brand || "",
+            model: r.model || "",
+            bikeName: r.bikeName || (r.brand + " " + r.model).trim(),
+            year: r.year || "",
+            mileage: r.mileage || "",
+            customer: r.customerName || "Kunde",
+            quote: r.quote || "€ --",
+            filed: isFiled
+          };
+        });
+      } else {
+        state.appointments = [];
+      }
+      renderQueueScreen();
+    }
+
+    function onDataError(err) {
+      hideLoading();
+      console.warn("Metabase fetch fallback:", err);
+      // Fallback to mock data
+      state.appointments = MOCK_APPTS.map(r => ({
+        bikeId: r.bikeId,
+        brand: r.brand,
+        model: r.model,
+        bikeName: r.brand + " " + r.model,
+        year: r.year,
+        mileage: r.mileage,
+        customer: r.customer,
+        quote: r.quote,
+        filed: !!state.filed[r.bikeId] || r.status === "filed"
+      }));
+      renderQueueScreen();
+    }
+
+    // --- RENDERERS ---
+
+    function renderHeader() {
+      const label = document.getElementById("wh-label");
+      if (label) label.textContent = state.warehouse;
+
+      const dropdown = document.getElementById("wh-dropdown-menu");
+      if (!dropdown) return;
+      
+      if (state.whOpen) {
+        dropdown.classList.add("open");
+        dropdown.innerHTML = WAREHOUSES.map(w => {
+          const isActive = w.name.toLowerCase() === state.warehouse.toLowerCase();
+          return `
+            <div class="wh-item" onclick="selectWarehouse('${w.name}')">
+              <span style="flex: 1;">
+                <span style="display: block; font-size: 14.5px; font-weight: 500; color: ${isActive ? 'var(--blue-600)' : 'var(--ink-900)'};">${w.name}</span>
+                <span style="display: block; margin-top: 2px; font-size: 12.5px; color: var(--ink-500);">${w.city}</span>
+              </span>
+              ${isActive ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue-500)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>` : ''}
+            </div>
+          `;
+        }).join("");
+      } else {
+        dropdown.classList.remove("open");
+      }
+    }
+
+    function selectWarehouse(whName) {
+      state.warehouse = whName;
+      state.whOpen = false;
+      renderHeader();
+      loadScheduleData();
+      
+      // Update form non-berlin fields if open
+      if (state.screen === "form") {
+        renderFormCard2();
+        renderSummaryPanel();
+      }
+    }
+
+    function renderQueueScreen() {
+      const wh = getWhRecord(state.warehouse);
+      document.getElementById("queue-wh-address").textContent = wh.city;
+
+      // Date Header
+      const d = new Date();
+      const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      document.getElementById("queue-date-title").textContent = days[d.getDay()] + ", " + d.getDate() + " " + months[d.getMonth()];
+
+      // Stats
+      const total = state.appointments.length;
+      const filedCnt = state.appointments.filter(a => state.filed[a.bikeId] || a.filed).length;
+      const pendingCnt = total - filedCnt;
+
+      document.getElementById("cnt-scheduled").textContent = total;
+      document.getElementById("cnt-pending").textContent = pendingCnt;
+      document.getElementById("cnt-filed").textContent = filedCnt;
+
+      renderQueueRows();
+    }
+
+    function renderQueueRows() {
+      const container = document.getElementById("table-rows-container");
+      if (!container) return;
+
+      const q = state.query.trim().toLowerCase();
+      const filtered = state.appointments.filter(a => {
+        if (!q) return true;
+        return (a.bikeId + " " + a.customer + " " + a.bikeName).toLowerCase().includes(q);
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="padding: 32px; text-align: center; color: var(--ink-500); font-size: 14px;">Keine Termine gefunden</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map((r, idx) => {
+        const isFiled = state.filed[r.bikeId] || r.filed;
+        const mileageFormatted = r.mileage ? formatNumberDE(r.mileage) + " km" : "—";
+        const subLine = (r.year ? r.year + " · " : "") + mileageFormatted;
+
+        if (isFiled) {
+          return `
+            <div class="table-grid table-row filed-row">
+              <div><span class="bike-chip filed">${r.bikeId}</span></div>
+              <div>
+                <div style="font-size: 15px; font-weight: 500; color: var(--ink-500);">${r.bikeName}</div>
+                <div style="margin-top: 2px; font-size: 12.5px; color: var(--ink-400);">${subLine}</div>
+              </div>
+              <div style="font-size: 14.5px; color: var(--ink-500);">${r.customer}</div>
+              <div style="font-size: 14.5px; color: var(--ink-500);">${r.quote}</div>
+              <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px;">
+                <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-400);">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg> Filed
+                </span>
+                <button class="btn btn-ghost btn-sm" onclick="openCheckinForm(${idx})">Reopen</button>
+              </div>
+            </div>
+          `;
+        } else {
+          return `
+            <div class="table-grid table-row">
+              <div><span class="bike-chip">${r.bikeId}</span></div>
+              <div>
+                <div style="font-size: 15px; font-weight: 500;">${r.bikeName}</div>
+                <div style="margin-top: 2px; font-size: 12.5px; color: var(--ink-500);">${subLine}</div>
+              </div>
+              <div style="font-size: 14.5px; color: var(--ink-700);">${r.customer}</div>
+              <div style="font-size: 14.5px; font-weight: 500;">${r.quote}</div>
+              <div style="display: flex; justify-content: flex-end;">
+                <button class="btn btn-primary btn-sm" onclick="openCheckinForm(${idx})">Check in</button>
+              </div>
+            </div>
+          `;
+        }
+      }).join("");
+    }
+
+    function openCheckinForm(index) {
+      const appt = state.appointments[index];
+      if (!appt) return;
+
+      const t = getNowGerman();
+      state.selectedIndex = index;
+      state.bookedName = appt.customer;
+      state.form = {
+        bikeId: appt.bikeId,
+        seller: appt.customer,
+        brand: appt.brand,
+        model: appt.model,
+        mileage: appt.mileage,
+        frame: appt.frame || "",
+        year: appt.year || "",
+        battery: appt.battery || "",
+        notes: "",
+        datum: t.datum,
+        uhrzeit: t.uhrzeit
+      };
+
+      // Default accessories
+      state.acc = { akku: true, lade: true, schl: false, disp: false };
+
+      switchScreen("form");
+    }
+
+    function renderFormScreen() {
+      // Fill Form inputs
+      document.getElementById("input-bike-id").value = state.form.bikeId;
+      document.getElementById("input-seller").value = state.form.seller;
+      document.getElementById("input-brand").value = state.form.brand;
+      document.getElementById("input-model").value = state.form.model;
+      document.getElementById("input-mileage").value = state.form.mileage;
+      document.getElementById("input-frame").value = state.form.frame;
+      document.getElementById("input-year").value = state.form.year;
+      document.getElementById("input-battery").value = state.form.battery;
+      document.getElementById("input-notes").value = state.form.notes;
+
+      document.getElementById("booked-seller-name").textContent = state.bookedName;
+      document.getElementById("seller-changed-hint").style.display = (state.form.seller !== state.bookedName && state.bookedName) ? "flex" : "none";
+
+      renderFormCard2();
+      renderFormCard3();
+      renderSummaryPanel();
+    }
+
+    function renderFormCard2() {
+      const isBerlin = state.warehouse.toLowerCase() === "berlin";
+      const nonBerlinFields = document.querySelectorAll(".non-berlin-field");
+      nonBerlinFields.forEach(el => el.style.display = isBerlin ? "none" : "block");
+    }
+
+    function renderFormCard3() {
+      const onCount = ACC_ITEMS.filter(x => state.acc[x.key]).length;
+      document.getElementById("handover-meta-cnt").textContent = `${onCount} of 4 handed over`;
+
+      document.querySelectorAll(".acc-tile").forEach(tile => {
+        const key = tile.getAttribute("data-acc");
+        const isActive = !!state.acc[key];
+        if (isActive) {
+          tile.classList.add("active");
+          tile.querySelector(".tile-check").innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>`;
+        } else {
+          tile.classList.remove("active");
+          tile.querySelector(".tile-check").innerHTML = "";
+        }
+      });
+    }
+
+    function renderSummaryPanel() {
+      const appt = state.appointments[state.selectedIndex] || {};
+      const bikeName = (state.form.brand + " " + state.form.model).trim() || "—";
+      document.getElementById("sum-bike-name").textContent = bikeName;
+      document.getElementById("sum-quote-val").textContent = appt.quote || "€ --";
+
+      const now = new Date();
+      document.getElementById("sum-drive-folder").textContent = `Saved to Drive · ${now.getFullYear()} › ${state.warehouse}`;
+
+      const isBerlin = state.warehouse.toLowerCase() === "berlin";
+      const onCount = ACC_ITEMS.filter(x => state.acc[x.key]).length;
+      const tickedAcc = ACC_ITEMS.filter(x => state.acc[x.key]).map(x => x.de).join(", ") || "—";
+
+      const mileageClean = state.form.mileage ? String(state.form.mileage).replace(/[^0-9]/g, "") : "";
+      const mileageFormatted = mileageClean ? formatNumberDE(mileageClean) + " km" : "—";
+
+      const okColor = "var(--ink-900)";
+      const missColor = "var(--ink-400)";
+
+      const list = [
+        { k: "Bike ID", v: state.form.bikeId || "—", color: state.form.bikeId ? okColor : missColor },
+        { k: "Verkäufer*in", v: state.form.seller || "—", color: state.form.seller ? okColor : missColor },
+        { k: "Rahmennummer", v: state.form.frame || "Missing", color: state.form.frame ? okColor : missColor },
+        { k: "Kilometerstand", v: mileageFormatted, color: mileageClean ? okColor : missColor }
+      ];
+
+      if (!isBerlin) {
+        list.push({ k: "Jahr", v: state.form.year || "—", color: state.form.year ? okColor : missColor });
+        list.push({ k: "Batterie", v: state.form.battery || "—", color: state.form.battery ? okColor : missColor });
+      }
+
+      list.push({ k: "Zubehör", v: tickedAcc, color: onCount ? okColor : missColor });
+
+      const bodyContainer = document.getElementById("summary-rows-container");
+      bodyContainer.innerHTML = list.map(r => `
+        <div class="summary-kv-row">
+          <span class="summary-k">${r.k}</span>
+          <span class="summary-v" style="color: ${r.color};">${r.v}</span>
+        </div>
+      `).join("");
+    }
+
+    // --- GENERATE BELEG ---
+    function handleGenerateBeleg() {
+      // Mark filed locally
+      if (state.form.bikeId) {
+        state.filed[state.form.bikeId] = true;
+      }
+      switchScreen("doc");
+    }
+
+    function renderDocScreen() {
+      const wh = getWhRecord(state.warehouse);
+      const whUpper = state.warehouse.toUpperCase();
+      const isBerlin = state.warehouse.toLowerCase() === "berlin";
+
+      // Pill
+      document.getElementById("doc-filename-pill").textContent = `Beleg ${state.form.bikeId || "N/A"}.pdf`;
+
+      // Header Page 1 & 2
+      document.getElementById("doc-wh-name-p1").textContent = `UPCENTER ${whUpper}`;
+      document.getElementById("doc-wh-address-p1").textContent = wh.city;
+      document.getElementById("doc-wh-name-p2").textContent = `UPCENTER ${whUpper}`;
+      document.getElementById("doc-wh-address-p2").textContent = wh.city;
+      document.getElementById("doc-wh-city-text").textContent = state.warehouse;
+
+      // Section 01
+      document.getElementById("doc-bike-id").textContent = state.form.bikeId || "—";
+      document.getElementById("doc-seller").textContent = state.form.seller || "—";
+      document.querySelectorAll(".doc-bike-id-footer").forEach(el => el.textContent = state.form.bikeId || "—");
+
+      // Section 02
+      const bikeName = (state.form.brand + " " + state.form.model).trim() || "—";
+      document.getElementById("doc-brand-model").textContent = bikeName;
+      
+      const mileageClean = state.form.mileage ? String(state.form.mileage).replace(/[^0-9]/g, "") : "";
+      document.getElementById("doc-mileage").textContent = mileageClean ? formatNumberDE(mileageClean) + " km" : "—";
+      document.getElementById("doc-frame").textContent = state.form.frame || "—";
+      document.getElementById("doc-year").textContent = state.form.year || "—";
+      document.getElementById("doc-battery").textContent = state.form.battery || "—";
+
+      document.querySelectorAll(".doc-non-berlin-cell").forEach(el => el.style.display = isBerlin ? "none" : "block");
+
+      // Section 03 Checkboxes
+      const accContainer = document.getElementById("doc-acc-checkboxes");
+      accContainer.innerHTML = ACC_ITEMS.map(item => {
+        const isChecked = !!state.acc[item.key];
+        return `
+          <div style="display: flex; align-items: center; gap: 8px;">
+            ${isChecked ? `
+              <span style="width: 15px; height: 15px; border-radius: 4px; background: var(--blue-500); display: flex; align-items: center; justify-content: center;">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+              </span>
+            ` : `
+              <span style="width: 15px; height: 15px; border-radius: 4px; border: 1px solid var(--ink-400); box-sizing: border-box;"></span>
+            `}
+            <span style="font-size: 13.5px; color: var(--ink-900);">${item.de}</span>
+          </div>
+        `;
+      }).join("");
+
+      document.getElementById("doc-notes-box").textContent = state.form.notes || "—";
+
+      // Section 05
+      document.getElementById("doc-datum").textContent = state.form.datum || getNowGerman().datum;
+      document.getElementById("doc-uhrzeit").textContent = state.form.uhrzeit || getNowGerman().uhrzeit;
+
+      // QR Code
+      const qrContainer = document.getElementById("doc-qr-container");
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(wh.reviewUrl)}`;
+      qrContainer.innerHTML = `<img src="${qrApiUrl}" alt="Review QR" style="width: 100%; height: 100%; object-fit: contain;">`;
+    }
+
+    // --- SAVE TO DRIVE & CLOSE ---
+    function handleSaveToDriveAndClose() {
+      showLoading("Speichere PDF in Google Drive ...");
+
+      const payload = {
+        bikeId: state.form.bikeId,
+        seller: state.form.seller,
+        brand: state.form.brand,
+        model: state.form.model,
+        mileage: state.form.mileage,
+        frame: state.form.frame,
+        year: state.form.year,
+        battery: state.form.battery,
+        akku: !!state.acc.akku,
+        lade: !!state.acc.lade,
+        schl: !!state.acc.schl,
+        disp: !!state.acc.disp,
+        notes: state.form.notes,
+        damage: state.form.notes,
+        datum: state.form.datum,
+        uhrzeit: state.form.uhrzeit,
+        warehouse: state.warehouse.toLowerCase()
+      };
+
+      if (typeof google !== "undefined" && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(onSaveSuccess)
+          .withFailureHandler(onSaveError)
+          .processDropoffDocument(payload);
+      } else {
+        setTimeout(() => {
+          onSaveSuccess({ success: true, bikeId: state.form.bikeId });
+        }, 600);
+      }
+    }
+
+    function onSaveSuccess(res) {
+      hideLoading();
+      if (state.form.bikeId) {
+        state.filed[state.form.bikeId] = true;
+      }
+      switchScreen("queue");
+      loadScheduleData();
+    }
+
+    function onSaveError(err) {
+      hideLoading();
+      alert("Fehler beim Speichern in Google Drive: " + (err.message || err));
+      switchScreen("queue");
+    }
+
+    // --- LOADING OVERLAY ---
+    function showLoading(msg) {
+      document.getElementById("loading-msg").textContent = msg || "Lade ...";
+      document.getElementById("loading-overlay").classList.add("active");
+    }
+
+    function hideLoading() {
+      document.getElementById("loading-overlay").classList.remove("active");
+    }
+  </script>
+</body>
+</html>

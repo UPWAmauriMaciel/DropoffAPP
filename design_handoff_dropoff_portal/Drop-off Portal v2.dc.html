@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/upway-design-system-d8839f46-7284-45c1-bc43-a7910ba87524/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/upway-design-system-d8839f46-7284-45c1-bc43-a7910ba87524/tokens/colors.css">
+<link rel="stylesheet" href="_ds/upway-design-system-d8839f46-7284-45c1-bc43-a7910ba87524/tokens/typography.css">
+<link rel="stylesheet" href="_ds/upway-design-system-d8839f46-7284-45c1-bc43-a7910ba87524/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/upway-design-system-d8839f46-7284-45c1-bc43-a7910ba87524/tokens/effects.css">
+<link rel="stylesheet" href="_ds/upway-design-system-d8839f46-7284-45c1-bc43-a7910ba87524/styles.css">
+<script src="_ds/upway-design-system-d8839f46-7284-45c1-bc43-a7910ba87524/_ds_bundle.js"></script>
+<style>
+  body { margin: 0; background: var(--ink-100); }
+  a { color: var(--blue-500); text-decoration: none; }
+  a:hover { color: var(--blue-700); }
+  input, textarea, select, button { font-family: var(--font-sans); font-variant-numeric: lining-nums tabular-nums; }
+  input:focus, textarea:focus { outline: none; border-color: var(--blue-500); box-shadow: 0 0 0 3px rgba(71,51,255,.15); }
+  ::placeholder { color: var(--ink-400); font-weight: 400; }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; background: var(--ink-100); font-family: var(--font-sans); color: var(--ink-900); font-variant-numeric: lining-nums tabular-nums; -webkit-font-smoothing: antialiased;">
+
+  <div style="position: sticky; top: 0; z-index: 40; display: flex; align-items: center; height: 64px; padding: 0 24px; gap: 18px; background: rgba(255,255,255,.94); backdrop-filter: blur(10px); border-bottom: 1px solid var(--ink-200);">
+    <img src="assets/upway-logo.webp" alt="Upway" style="height: 16px; width: auto; display: block;">
+    <div style="width: 1px; height: 20px; background: var(--ink-200);"></div>
+    <div style="font-size: 14px; font-weight: 500; letter-spacing: -0.01em; color: var(--ink-700);">Drop-off desk</div>
+
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 8px; position: relative;">
+      <div onClick="{{ toggleWh }}" data-wh="1" style="display: flex; align-items: center; gap: 9px; height: 38px; padding: 0 12px; border: 1px solid var(--ink-300); border-radius: 10px; background: var(--white); font-size: 14px; font-weight: 500; cursor: pointer;" style-hover="border-color: var(--ink-500);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ink-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"></path><circle cx="12" cy="10" r="2.6"></circle></svg>
+        {{ warehouseName }}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+      </div>
+      <sc-if value="{{ whOpen }}" hint-placeholder-val="{{ false }}">
+        <div data-wh="1" style="position: absolute; top: 46px; right: 0; width: 268px; box-sizing: border-box; z-index: 60; background: var(--white); border: 1px solid var(--ink-200); border-radius: 14px; box-shadow: 0 12px 32px rgba(14,14,20,.14); padding: 6px; max-height: 340px; overflow-y: auto; overflow-x: hidden;">
+          <sc-for list="{{ warehouses }}" as="w" hint-placeholder-count="5">
+            <div onClick="{{ w.onPick }}" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 9px; cursor: pointer;" style-hover="background: var(--ink-100);">
+              <span style="flex: 1;">
+                <span style="display: block; font-size: 14.5px; font-weight: 500; color: {{ w.color }};">{{ w.name }}</span>
+                <span style="display: block; margin-top: 2px; font-size: 12.5px; color: var(--ink-500);">{{ w.city }}</span>
+              </span>
+              <sc-if value="{{ w.active }}" hint-placeholder-val="{{ false }}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue-500)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{ isQueue }}" hint-placeholder-val="{{ true }}">
+  <div style="max-width: 1180px; margin: 0 auto; padding: 40px 24px 80px;">
+
+    <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; flex-wrap: wrap;">
+      <div>
+        <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--blue-500);">Today's schedule</div>
+        <h1 style="margin: 10px 0 0; font-size: 36px; line-height: 1.08; letter-spacing: -0.02em; font-weight: 700;">{{ todayLong }}</h1>
+        <div style="display: flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 14px; color: var(--ink-600);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-400)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"></path><circle cx="12" cy="10" r="2.6"></circle></svg>
+          {{ warehouseAddress }}
+        </div>
+      </div>
+      <div style="display: flex; gap: 36px;">
+        <div>
+          <div style="font-size: 30px; line-height: 1; font-weight: 700; letter-spacing: -0.02em;">{{ countAll }}</div>
+          <div style="margin-top: 7px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500);">Scheduled</div>
+        </div>
+        <div>
+          <div style="font-size: 30px; line-height: 1; font-weight: 700; letter-spacing: -0.02em; color: var(--blue-500);">{{ countPending }}</div>
+          <div style="margin-top: 7px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500);">Awaiting check</div>
+        </div>
+        <div>
+          <div style="font-size: 30px; line-height: 1; font-weight: 700; letter-spacing: -0.02em; color: var(--green-500);">{{ countFiled }}</div>
+          <div style="margin-top: 7px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500);">Filed</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; margin-top: 32px;">
+      <div style="display: flex; align-items: center; gap: 10px; flex: 1; max-width: 400px; height: 44px; padding: 0 14px; background: var(--white); border: 1px solid var(--ink-300); border-radius: 12px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-500)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <input placeholder="Search bike ID, customer or model" value="{{ query }}" onInput="{{ onQuery }}" style="flex: 1; border: none; background: none; font-size: 14.5px; color: var(--ink-900);">
+      </div>
+      <div style="display: flex; gap: 4px; padding: 4px; background: var(--white); border: 1px solid var(--ink-300); border-radius: 12px;">
+        <sc-for list="{{ periods }}" as="p" hint-placeholder-count="3">
+          <div onClick="{{ p.onPick }}">
+            <sc-if value="{{ p.active }}" hint-placeholder-val="{{ false }}">
+              <div style="height: 36px; display: flex; align-items: center; padding: 0 14px; border-radius: 9px; font-size: 14px; font-weight: 500; cursor: pointer; background: var(--blue-500); color: var(--white);">{{ p.label }}</div>
+            </sc-if>
+            <sc-if value="{{ p.inactive }}" hint-placeholder-val="{{ true }}">
+              <div style="height: 36px; display: flex; align-items: center; padding: 0 14px; border-radius: 9px; font-size: 14px; font-weight: 500; cursor: pointer; color: var(--ink-600);" style-hover="background: var(--ink-100);">{{ p.label }}</div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="margin-top: 20px; background: var(--white); border: 1px solid var(--ink-200); border-radius: 20px; overflow: hidden;">
+      <div style="display: grid; grid-template-columns: 108px minmax(160px, 1.5fr) minmax(130px, 1fr) 96px 168px; align-items: center; gap: 14px; padding: 13px 22px; border-bottom: 1px solid var(--ink-200); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500);">
+        <div>Bike ID</div><div>Bike</div><div>Customer</div><div>Quote</div><div></div>
+      </div>
+      <sc-for list="{{ rows }}" as="r" hint-placeholder-count="6">
+        <sc-if value="{{ r.pending }}" hint-placeholder-val="{{ true }}">
+          <div style="display: grid; grid-template-columns: 108px minmax(160px, 1.5fr) minmax(130px, 1fr) 96px 168px; align-items: center; gap: 14px; padding: 16px 22px; border-bottom: 1px solid var(--ink-200);" style-hover="background: var(--ink-50);">
+            <div><span style="display: inline-block; padding: 4px 9px; border-radius: 7px; background: var(--blue-50); color: var(--blue-600); font-size: 13px; font-weight: 700; letter-spacing: 0.03em;">{{ r.bikeId }}</span></div>
+            <div>
+              <div style="font-size: 15px; font-weight: 500;">{{ r.bikeName }}</div>
+              <div style="margin-top: 2px; font-size: 12.5px; color: var(--ink-500);">{{ r.sub }}</div>
+            </div>
+            <div style="font-size: 14.5px; color: var(--ink-700);">{{ r.customer }}</div>
+            <div style="font-size: 14.5px; font-weight: 500;">{{ r.quote }}</div>
+            <div style="display: flex; justify-content: flex-end;">
+              <x-import component-from-global-scope="UpwayDesignSystem_d8839f.Button" size="sm" onClick="{{ r.onOpen }}" hint-size="auto,34px">Check in</x-import>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ r.filed }}" hint-placeholder-val="{{ false }}">
+          <div style="display: grid; grid-template-columns: 108px minmax(160px, 1.5fr) minmax(130px, 1fr) 96px 168px; align-items: center; gap: 14px; padding: 16px 22px; border-bottom: 1px solid var(--ink-200); background: var(--ink-50);">
+            <div><span style="display: inline-block; padding: 4px 9px; border-radius: 7px; background: var(--ink-200); color: var(--ink-500); font-size: 13px; font-weight: 700; letter-spacing: 0.03em;">{{ r.bikeId }}</span></div>
+            <div>
+              <div style="font-size: 15px; font-weight: 500; color: var(--ink-500);">{{ r.bikeName }}</div>
+              <div style="margin-top: 2px; font-size: 12.5px; color: var(--ink-400);">{{ r.sub }}</div>
+            </div>
+            <div style="font-size: 14.5px; color: var(--ink-500);">{{ r.customer }}</div>
+            <div style="font-size: 14.5px; color: var(--ink-500);">{{ r.quote }}</div>
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px;">
+              <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-400);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg> Filed
+              </span>
+              <x-import component-from-global-scope="UpwayDesignSystem_d8839f.Button" variant="ghost" size="sm" onClick="{{ r.onOpen }}" hint-size="auto,34px">Reopen</x-import>
+            </div>
+          </div>
+        </sc-if>
+      </sc-for>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isForm }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width: 1180px; margin: 0 auto; padding: 26px 24px 60px;">
+
+    <div onClick="{{ toQueue }}" style="display: inline-flex; align-items: center; gap: 7px; font-size: 14px; color: var(--ink-600); cursor: pointer;" style-hover="color: var(--blue-500);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
+      Back to schedule
+    </div>
+
+    <div style="display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; align-items: start; margin-top: 16px;">
+
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+
+        <div style="background: var(--white); border: 1px solid var(--ink-200); border-radius: 20px; padding: 26px 28px 28px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="width: 24px; height: 24px; border-radius: 7px; background: var(--blue-50); color: var(--blue-600); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">1</span>
+            <span style="font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">Seller &amp; appointment</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; margin-top: 22px;">
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); margin-bottom: 7px;">Bike ID</label>
+              <input value="{{ f.bikeId }}" onChange="{{ setBikeId }}" style="width: 100%; height: 46px; padding: 0 13px; box-sizing: border-box; border: 1px solid var(--ink-300); border-radius: 10px; font-size: 16px; font-weight: 700; letter-spacing: 0.03em; color: var(--blue-600); text-transform: uppercase; background: var(--white);">
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); margin-bottom: 7px;">Name Verkäufer*in</label>
+              <input value="{{ f.seller }}" onChange="{{ setSeller }}" placeholder="Full name" style="width: 100%; height: 46px; padding: 0 13px; box-sizing: border-box; border: 1px solid var(--ink-300); border-radius: 10px; font-size: 15.5px; color: var(--ink-900); background: var(--white);">
+              <sc-if value="{{ nameChanged }}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; align-items: center; gap: 6px; margin-top: 7px; font-size: 12.5px; color: var(--ink-500);">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--blue-500)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>
+                  Booked under {{ bookedName }}
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: var(--white); border: 1px solid var(--ink-200); border-radius: 20px; padding: 26px 28px 28px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="width: 24px; height: 24px; border-radius: 7px; background: var(--blue-50); color: var(--blue-600); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">2</span>
+            <span style="font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">Bike data</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 22px;">
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); margin-bottom: 7px;">Marke</label>
+              <input value="{{ f.brand }}" onChange="{{ setBrand }}" placeholder="Stromer" style="width: 100%; height: 46px; padding: 0 13px; box-sizing: border-box; border: 1px solid var(--ink-300); border-radius: 10px; font-size: 15.5px; background: var(--white);">
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); margin-bottom: 7px;">Modell</label>
+              <input value="{{ f.model }}" onChange="{{ setModel }}" placeholder="ST3" style="width: 100%; height: 46px; padding: 0 13px; box-sizing: border-box; border: 1px solid var(--ink-300); border-radius: 10px; font-size: 15.5px; background: var(--white);">
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); margin-bottom: 7px;">Kilometerstand</label>
+              <input value="{{ f.mileage }}" onChange="{{ setMileage }}" placeholder="1240 km" style="width: 100%; height: 46px; padding: 0 13px; box-sizing: border-box; border: 1px solid var(--ink-300); border-radius: 10px; font-size: 15.5px; background: var(--white);">
+            </div>
+            <div>
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); margin-bottom: 7px;">
+                Rahmennummer
+                <span style="padding: 2px 6px; border-radius: 5px; background: var(--ink-100); color: var(--ink-600); font-size: 10.5px; letter-spacing: 0.04em;">MANUAL</span>
+              </label>
+              <input value="{{ f.frame }}" onChange="{{ setFrame }}" placeholder="Read off the frame" style="width: 100%; height: 46px; padding: 0 13px; box-sizing: border-box; border: 1px solid var(--ink-300); border-radius: 10px; font-size: 15.5px; letter-spacing: 0.02em; background: var(--white);">
+            </div>
+            <sc-if value="{{ needsBattery }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <label style="display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); margin-bottom: 7px;">Jahr</label>
+                <input value="{{ f.year }}" onChange="{{ setYear }}" placeholder="2022" style="width: 100%; height: 46px; padding: 0 13px; box-sizing: border-box; border: 1px solid var(--ink-300); border-radius: 10px; font-size: 15.5px; background: var(--white);">
+              </div>
+              <div>
+                <label style="display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); margin-bottom: 7px;">Batteriekapazität</label>
+                <input value="{{ f.battery }}" onChange="{{ setBattery }}" placeholder="983 Wh" style="width: 100%; height: 46px; padding: 0 13px; box-sizing: border-box; border: 1px solid var(--ink-300); border-radius: 10px; font-size: 15.5px; background: var(--white);">
+              </div>
+            </sc-if>
+          </div>
+        </div>
+
+        <div style="background: var(--white); border: 1px solid var(--ink-200); border-radius: 20px; padding: 26px 28px 28px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="width: 24px; height: 24px; border-radius: 7px; background: var(--blue-50); color: var(--blue-600); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">3</span>
+            <span style="font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">Handover</span>
+            <span style="margin-left: auto; font-size: 13px; color: var(--ink-500);">{{ accCount }}</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 22px;">
+            <sc-for list="{{ accessories }}" as="a" hint-placeholder-count="4">
+              <div onClick="{{ a.onToggle }}">
+                <sc-if value="{{ a.on }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: flex; flex-direction: column; gap: 10px; min-height: 92px; padding: 14px; box-sizing: border-box; border-radius: 14px; border: 1.5px solid var(--blue-500); background: var(--blue-50); cursor: pointer; user-select: none;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                      <span style="color: var(--blue-600); display: flex;" dangerouslySetInnerHTML="{{ a.icon }}"></span>
+                      <span style="width: 22px; height: 22px; border-radius: 6px; background: var(--blue-500); display: flex; align-items: center; justify-content: center;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+                      </span>
+                    </div>
+                    <span style="font-size: 15px; font-weight: 500; color: var(--blue-800);">{{ a.de }}</span>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ a.off }}" hint-placeholder-val="{{ true }}">
+                  <div style="display: flex; flex-direction: column; gap: 10px; min-height: 92px; padding: 14px; box-sizing: border-box; border-radius: 14px; border: 1.5px solid var(--ink-300); background: var(--white); cursor: pointer; user-select: none;" style-hover="border-color: var(--ink-500);">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                      <span style="color: var(--ink-400); display: flex;" dangerouslySetInnerHTML="{{ a.icon }}"></span>
+                      <span style="width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--ink-300); box-sizing: border-box;"></span>
+                    </div>
+                    <span style="font-size: 15px; font-weight: 500; color: var(--ink-600);">{{ a.de }}</span>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="margin-top: 18px;">
+            <label style="display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); margin-bottom: 7px;">Notizen</label>
+            <textarea value="{{ f.notes }}" onChange="{{ setNotes }}" placeholder="Zustand, Kratzer, fehlende Teile …" style="width: 100%; min-height: 96px; padding: 12px 13px; box-sizing: border-box; border: 1px solid var(--ink-300); border-radius: 10px; font-size: 15px; line-height: 1.5; resize: vertical; background: var(--white);"></textarea>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="position: sticky; top: 88px; background: var(--white); border: 1px solid var(--ink-200); border-radius: 20px; overflow: hidden;">
+        <div style="padding: 22px 22px 20px; border-bottom: 1px solid var(--ink-200);">
+          <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500);">Drop-off</div>
+          <div style="margin-top: 10px; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2;">{{ bikeName }}</div>
+          <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 14px;">
+            <span style="font-size: 26px; font-weight: 700; letter-spacing: -0.02em;">{{ quote }}</span>
+            <span style="font-size: 13px; color: var(--ink-500);">quoted</span>
+          </div>
+        </div>
+        <div style="padding: 18px 22px;">
+          <sc-for list="{{ summary }}" as="s" hint-placeholder-count="5">
+            <div style="display: flex; align-items: baseline; gap: 14px; padding: 7px 0;">
+              <span style="flex: none; width: 108px; font-size: 12.5px; color: var(--ink-500);">{{ s.k }}</span>
+              <span style="flex: 1; font-size: 13.5px; color: {{ s.color }}; text-align: right;">{{ s.v }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding: 16px 22px 22px; border-top: 1px solid var(--ink-200); display: flex; flex-direction: column; gap: 10px;">
+          <x-import component-from-global-scope="UpwayDesignSystem_d8839f.Button" size="lg" block="{{ true }}" onClick="{{ generate }}" hint-size="100%,50px">Generate beleg</x-import>
+          <div style="font-size: 12.5px; color: var(--ink-500); text-align: center;">Saved to Drive · {{ driveFolder }}</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isDoc }}" hint-placeholder-val="{{ false }}">
+  <div style="background: var(--ink-200); min-height: calc(100vh - 64px);">
+    <div style="position: sticky; top: 64px; z-index: 20; background: var(--white); border-bottom: 1px solid var(--ink-200);">
+      <div style="max-width: 1180px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 14px;">
+        <div onClick="{{ toQueue }}" style="display: inline-flex; align-items: center; gap: 7px; font-size: 14px; color: var(--ink-600); cursor: pointer;" style-hover="color: var(--blue-500);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
+          Back to schedule
+        </div>
+        <div style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 999px; background: var(--green-100); color: #0B7A48; font-size: 13px; font-weight: 500;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+          {{ fileName }}
+        </div>
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+          <x-import component-from-global-scope="UpwayDesignSystem_d8839f.Button" variant="secondary" onClick="{{ doEdit }}" hint-size="auto,40px">Edit details</x-import>
+          <x-import component-from-global-scope="UpwayDesignSystem_d8839f.Button" variant="secondary" onClick="{{ doPrint }}" hint-size="auto,40px">Print</x-import>
+          <x-import component-from-global-scope="UpwayDesignSystem_d8839f.Button" onClick="{{ toQueue }}" hint-size="auto,40px">Save to Drive &amp; close</x-import>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 36px 24px 72px;">
+
+      <div style="width: 794px; min-height: 1123px; box-sizing: border-box; background: var(--white); box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 16px 36px rgba(14,14,20,.10); position: relative; padding: 60px 64px 52px;">
+        <div style="position: absolute; top: 0; left: 0; right: 0; height: 5px; background: var(--blue-500);"></div>
+        <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+          <img src="assets/upway-logo.webp" alt="Upway" style="height: 20px; width: auto; display: block;">
+          <div style="text-align: right; font-size: 11px; line-height: 1.5; color: var(--ink-500);">
+            <div style="font-weight: 700; letter-spacing: 0.06em; color: var(--ink-900);">UPCENTER {{ warehouseUpper }}</div>
+            <div>{{ warehouseAddress }}</div>
+          </div>
+        </div>
+
+        <h1 style="margin: 40px 0 0; font-size: 28px; line-height: 1.12; letter-spacing: -0.02em; font-weight: 700;">Einlieferungsbeleg</h1>
+        <p style="margin: 8px 0 0; font-size: 13px; color: var(--ink-600);">Nachweis über die physische Abgabe eines E-Bikes zum Ankauf</p>
+
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 38px;">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--blue-500);">01</span>
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-900);">VERKÄUFER*IN</span>
+          <span style="flex: 1; height: 1px; background: var(--ink-200);"></span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 18px;">
+          <div style="padding-bottom: 10px; border-bottom: 1px solid var(--ink-200);">
+            <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-500);">BIKE-ID</div>
+            <div style="margin-top: 7px; font-size: 16px; font-weight: 700; letter-spacing: 0.03em; color: var(--blue-600);">{{ doc.bikeId }}</div>
+          </div>
+          <div style="padding-bottom: 10px; border-bottom: 1px solid var(--ink-200);">
+            <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-500);">NAME VERKÄUFER*IN</div>
+            <div style="margin-top: 7px; font-size: 16px; color: var(--ink-900);">{{ doc.seller }}</div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 34px;">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--blue-500);">02</span>
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-900);">FAHRZEUGDATEN</span>
+          <span style="flex: 1; height: 1px; background: var(--ink-200);"></span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; margin-top: 18px;">
+          <div style="padding-bottom: 10px; border-bottom: 1px solid var(--ink-200);">
+            <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-500);">MARKE &amp; MODELL</div>
+            <div style="margin-top: 7px; font-size: 16px; color: var(--ink-900);">{{ doc.bike }}</div>
+          </div>
+          <div style="padding-bottom: 10px; border-bottom: 1px solid var(--ink-200);">
+            <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-500);">KILOMETERSTAND</div>
+            <div style="margin-top: 7px; font-size: 16px; color: var(--ink-900);">{{ doc.mileage }}</div>
+          </div>
+          <div style="padding-bottom: 10px; border-bottom: 1px solid var(--ink-200);">
+            <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-500);">RAHMENNUMMER</div>
+            <div style="margin-top: 7px; font-size: 16px; letter-spacing: 0.02em; color: var(--ink-900);">{{ doc.frame }}</div>
+          </div>
+          <sc-if value="{{ needsBattery }}" hint-placeholder-val="{{ false }}">
+            <div style="padding-bottom: 10px; border-bottom: 1px solid var(--ink-200);">
+              <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-500);">JAHR</div>
+              <div style="margin-top: 7px; font-size: 16px; color: var(--ink-900);">{{ doc.year }}</div>
+            </div>
+            <div style="padding-bottom: 10px; border-bottom: 1px solid var(--ink-200);">
+              <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-500);">BATTERIEKAPAZITÄT</div>
+              <div style="margin-top: 7px; font-size: 16px; color: var(--ink-900);">{{ doc.battery }}</div>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 34px;">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--blue-500);">03</span>
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-900);">ÜBERGABE-CHECKLISTE</span>
+          <span style="flex: 1; height: 1px; background: var(--ink-200);"></span>
+        </div>
+        <div style="margin-top: 18px; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-500);">ZUBEHÖR</div>
+        <div style="display: flex; gap: 30px; margin-top: 12px;">
+          <sc-for list="{{ docAccessories }}" as="a" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <sc-if value="{{ a.on }}" hint-placeholder-val="{{ false }}">
+                <span style="width: 15px; height: 15px; border-radius: 4px; background: var(--blue-500); display: flex; align-items: center; justify-content: center;">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+                </span>
+              </sc-if>
+              <sc-if value="{{ a.off }}" hint-placeholder-val="{{ true }}">
+                <span style="width: 15px; height: 15px; border-radius: 4px; border: 1px solid var(--ink-400); box-sizing: border-box;"></span>
+              </sc-if>
+              <span style="font-size: 13.5px; color: var(--ink-900);">{{ a.de }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="margin-top: 24px; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-500);">NOTIZEN</div>
+        <div style="margin-top: 9px; min-height: 120px; padding: 14px 16px; box-sizing: border-box; border: 1px solid var(--ink-300); border-radius: 8px; font-size: 13.5px; line-height: 1.55; color: var(--ink-900); white-space: pre-wrap;">{{ doc.notes }}</div>
+
+        <div style="position: absolute; left: 64px; right: 64px; bottom: 36px; display: flex; justify-content: space-between; font-size: 10px; color: var(--ink-500);">
+          <span>Upway · Einlieferungsbeleg {{ doc.bikeId }}</span>
+          <span>Seite 1 / 2</span>
+        </div>
+      </div>
+
+      <div style="width: 794px; min-height: 1123px; box-sizing: border-box; background: var(--white); box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 16px 36px rgba(14,14,20,.10); position: relative; padding: 60px 64px 52px;">
+        <div style="position: absolute; top: 0; left: 0; right: 0; height: 5px; background: var(--blue-500);"></div>
+        <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+          <img src="assets/upway-logo.webp" alt="Upway" style="height: 20px; width: auto; display: block;">
+          <div style="text-align: right; font-size: 11px; line-height: 1.5; color: var(--ink-500);">
+            <div style="font-weight: 700; letter-spacing: 0.06em; color: var(--ink-900);">UPCENTER {{ warehouseUpper }}</div>
+            <div>{{ warehouseAddress }}</div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 40px;">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--blue-500);">04</span>
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-900);">RECHTLICHE HINWEISE</span>
+          <span style="flex: 1; height: 1px; background: var(--ink-200);"></span>
+        </div>
+        <p style="margin: 18px 0 0; font-size: 13px; line-height: 1.6; color: var(--ink-900);">Mit der Abgabe im UpCenter {{ warehouseName }} erkennt der/die Verkäufer*in folgende Bedingungen an:</p>
+
+        <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: grid; grid-template-columns: 20px 1fr; gap: 10px;">
+            <span style="font-size: 13px; font-weight: 700; color: var(--blue-500);">1.</span>
+            <p style="margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-900);"><strong style="font-weight: 700;">Technische Tiefenprüfung:</strong> Dieser Beleg bestätigt nur den Erhalt der Hardware. Die finale technische Prüfung und Bestätigung des Ankaufspreises erfolgen zeitversetzt durch unsere Experten (§ III AGB).</p>
+          </div>
+          <div style="display: grid; grid-template-columns: 20px 1fr; gap: 10px;">
+            <span style="font-size: 13px; font-weight: 700; color: var(--blue-500);">2.</span>
+            <p style="margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-900);"><strong style="font-weight: 700;">Eigentumsvorbehalt (§ VIII):</strong> Das E-Bike bleibt bis zur vollständigen Auszahlung des Kaufpreises durch Upway im Eigentum des/der Verkäufer*in.</p>
+          </div>
+          <div style="display: grid; grid-template-columns: 20px 1fr; gap: 10px;">
+            <span style="font-size: 13px; font-weight: 700; color: var(--blue-500);">3.</span>
+            <p style="margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-900);"><strong style="font-weight: 700;">Akku-Sicherheit (§ IX):</strong> Der/die Verkäufer*in versichert, dass weder der Akku noch der Motor beschädigt oder technisch manipuliert wurden.</p>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 40px;">
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--blue-500);">05</span>
+          <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-900);">BESTÄTIGUNG DER EINLIEFERUNG</span>
+          <span style="flex: 1; height: 1px; background: var(--ink-200);"></span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 18px;">
+          <div style="padding-bottom: 10px; border-bottom: 1px solid var(--ink-200);">
+            <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-500);">DATUM</div>
+            <div style="margin-top: 7px; font-size: 16px; color: var(--ink-900);">{{ doc.datum }}</div>
+          </div>
+          <div style="padding-bottom: 10px; border-bottom: 1px solid var(--ink-200);">
+            <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-500);">UHRZEIT</div>
+            <div style="margin-top: 7px; font-size: 16px; color: var(--ink-900);">{{ doc.uhrzeit }}</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 52px; width: 300px;">
+          <div style="height: 1px; background: var(--ink-700);"></div>
+          <div style="margin-top: 9px; font-size: 10.5px; color: var(--ink-500);">Unterschrift Upway (Annahme)</div>
+        </div>
+
+        <div style="margin-top: 52px; height: 1px; background: var(--ink-200);"></div>
+
+        <div style="display: flex; align-items: center; gap: 28px; margin-top: 28px;">
+          <div style="flex: 1;">
+            <div style="font-size: 17px; font-weight: 700; letter-spacing: -0.01em;">Danke für Ihr Vertrauen!</div>
+            <p style="margin: 9px 0 0; max-width: 320px; font-size: 13px; line-height: 1.6; color: var(--ink-600);">Wir möchten uns stetig verbessern. Hat heute alles geklappt? Dann freuen wir uns über Ihre Bewertung.</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="width: 120px; height: 72px; border: 1px dashed var(--ink-300); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 10.5px; color: var(--ink-400); text-align: center;">Google review<br>badge</div>
+            <div style="width: 88px; height: 88px; border: 1px dashed var(--ink-300); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 10.5px; color: var(--ink-400);">QR</div>
+          </div>
+        </div>
+
+        <div style="position: absolute; left: 64px; right: 64px; bottom: 36px; display: flex; justify-content: space-between; font-size: 10px; color: var(--ink-500);">
+          <span>Upway · Einlieferungsbeleg {{ doc.bikeId }}</span>
+          <span>Seite 2 / 2</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;warehouse&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Berlin&quot;,&quot;Düsseldorf&quot;,&quot;Stuttgart&quot;,&quot;Amsterdam&quot;,&quot;Antwerp&quot;,&quot;Gennevilliers&quot;,&quot;Los Angeles&quot;,&quot;New York&quot;],&quot;default&quot;:&quot;Berlin&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Setup&quot;},&quot;operatorName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;M. Alves&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Setup&quot;}}">
+const WAREHOUSES = [
+  { name: "Berlin", city: "Alexander-Meißner-Straße 77D · 12526 Berlin" },
+  { name: "Düsseldorf", city: "Höherweg 271 · 40231 Düsseldorf" },
+  { name: "Stuttgart", city: "Hauptstätter Straße 149 · 70178 Stuttgart" },
+  { name: "Amsterdam", city: "Contactweg 47 · 1014 AN Amsterdam" },
+  { name: "Antwerp", city: "Noorderlaan 133 · 2030 Antwerpen" },
+  { name: "Gennevilliers", city: "12 Rue des Chardons · 92230 Gennevilliers" },
+  { name: "Los Angeles", city: "1933 S Broadway · Los Angeles, CA 90007" },
+  { name: "New York", city: "37-24 24th St · Long Island City, NY 11101" }
+];
+
+const APPTS = [
+  { time: "09:00", bikeId: "RK2EP9", brand: "Stromer", model: "ST3", year: "2022", mileage: "1240", customer: "Lena Hoffmann", quote: "€ 1.890", status: "filed" },
+  { time: "09:45", bikeId: "RK2FP1", brand: "Riese & Müller", model: "Charger3 GT", year: "2021", mileage: "3480", customer: "Tobias Wagner", quote: "€ 2.240", status: "pending" },
+  { time: "10:30", bikeId: "RK2GU8", brand: "Cube", model: "Reaction Hybrid Pro", year: "2023", mileage: "620", customer: "Miriam Sanders", quote: "€ 1.150", status: "pending" },
+  { time: "11:15", bikeId: "RK2JP9", brand: "VanMoof", model: "S3", year: "2020", mileage: "5910", customer: "Jonas Krüger", quote: "€ 740", status: "pending" },
+  { time: "13:00", bikeId: "RK2KU4", brand: "Gazelle", model: "Ultimate C380", year: "2022", mileage: "2130", customer: "Aylin Demir", quote: "€ 1.630", status: "filed" },
+  { time: "14:30", bikeId: "RK2LM2", brand: "Specialized", model: "Turbo Vado 4.0", year: "2023", mileage: "890", customer: "Paul Neumann", quote: "€ 2.010", status: "pending" }
+];
+
+function svg(inner) {
+  return { __html: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>' };
+}
+
+const ACC = [
+  { key: "akku", de: "Akku", icon: svg('<rect x="2" y="7" width="16" height="10" rx="2"></rect><path d="M22 11v2"></path><path d="M6 11v2M10 11v2"></path>') },
+  { key: "lade", de: "Ladegerät", icon: svg('<path d="M9 2v6M15 2v6"></path><rect x="6" y="8" width="12" height="7" rx="2"></rect><path d="M12 15v7"></path>') },
+  { key: "schl", de: "Schlüssel", icon: svg('<circle cx="8" cy="8" r="4.5"></circle><path d="M11.2 11.2L21 21M17.5 17.5l2-2M14.5 14.5l2-2"></path>') },
+  { key: "disp", de: "Display", icon: svg('<rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path>') }
+];
+
+function pad(n) { return String(n).padStart(2, "0"); }
+
+class Component extends DCLogic {
+  state = {
+    screen: "queue", sel: 1, query: "", period: "today",
+    warehouse: null, whOpen: false,
+    f: { bikeId: "", seller: "", brand: "", model: "", mileage: "", frame: "", year: "", battery: "", notes: "", datum: "", uhrzeit: "" },
+    acc: { akku: false, lade: false, schl: false, disp: false },
+    filed: {}
+  };
+
+  componentDidMount() {
+    this._away = (e) => {
+      if (!this.state.whOpen) return;
+      const t = e.target;
+      if (t && t.closest && t.closest("[data-wh]")) return;
+      this.setState({ whOpen: false });
+    };
+    this._esc = (e) => { if (e.key === "Escape") this.setState({ whOpen: false }); };
+    document.addEventListener("mousedown", this._away, true);
+    document.addEventListener("keydown", this._esc);
+  }
+
+  componentWillUnmount() {
+    document.removeEventListener("mousedown", this._away, true);
+    document.removeEventListener("keydown", this._esc);
+  }
+
+  now() {
+    const d = new Date();
+    return { datum: pad(d.getDate()) + "." + pad(d.getMonth() + 1) + "." + d.getFullYear(), uhrzeit: pad(d.getHours()) + ":" + pad(d.getMinutes()) };
+  }
+
+  open(i) {
+    const a = APPTS[i], t = this.now();
+    this.setState({
+      screen: "form", sel: i, whOpen: false,
+      f: { bikeId: a.bikeId, seller: a.customer, brand: a.brand, model: a.model, mileage: a.mileage, frame: "", year: a.year, battery: "", notes: "", datum: t.datum, uhrzeit: t.uhrzeit },
+      acc: { akku: true, lade: true, schl: false, disp: false }
+    });
+  }
+
+  set(k) { return (e) => { const v = e.target.value; this.setState((s) => ({ f: Object.assign({}, s.f, { [k]: v }) })); }; }
+
+  renderVals() {
+    const s = this.state;
+    const wh = s.warehouse || this.props.warehouse || "Berlin";
+    const whRec = WAREHOUSES.filter((w) => w.name === wh)[0] || WAREHOUSES[0];
+    const isBerlin = wh === "Berlin";
+    const a = APPTS[s.sel] || APPTS[0];
+    const q = s.query.trim().toLowerCase();
+
+    const rows = APPTS.map((r, i) => {
+      const filed = s.filed[r.bikeId] || r.status === "filed";
+      return {
+        time: r.time, bikeId: r.bikeId, bikeName: r.brand + " " + r.model,
+        sub: r.year + " · " + Number(r.mileage).toLocaleString("de-DE") + " km",
+        customer: r.customer, quote: r.quote, filed: filed, pending: !filed,
+        onOpen: () => this.open(i)
+      };
+    }).filter((r) => !q || (r.bikeId + " " + r.customer + " " + r.bikeName).toLowerCase().includes(q));
+
+    const d = new Date();
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+    const accessories = ACC.map((x) => ({
+      de: x.de, icon: x.icon, on: !!s.acc[x.key], off: !s.acc[x.key],
+      onToggle: () => this.setState((st) => ({ acc: Object.assign({}, st.acc, { [x.key]: !st.acc[x.key] }) }))
+    }));
+    const onCount = ACC.filter((x) => s.acc[x.key]).length;
+    const ticked = ACC.filter((x) => s.acc[x.key]).map((x) => x.de).join(", ") || "—";
+    const mileage = s.f.mileage ? String(s.f.mileage).replace(/[^0-9]/g, "") : "";
+    const mileageOut = mileage ? Number(mileage).toLocaleString("de-DE") + " km" : "—";
+    const miss = "var(--ink-400)", ok = "var(--ink-900)";
+
+    const summary = [
+      { k: "Bike ID", v: s.f.bikeId || "—", color: s.f.bikeId ? ok : miss },
+      { k: "Verkäufer*in", v: s.f.seller || "—", color: s.f.seller ? ok : miss },
+      { k: "Rahmennummer", v: s.f.frame || "Missing", color: s.f.frame ? ok : miss },
+      { k: "Kilometerstand", v: mileageOut, color: mileage ? ok : miss }
+    ];
+    if (!isBerlin) {
+      summary.push({ k: "Jahr", v: s.f.year || "—", color: s.f.year ? ok : miss });
+      summary.push({ k: "Batterie", v: s.f.battery || "—", color: s.f.battery ? ok : miss });
+    }
+    summary.push({ k: "Zubehör", v: ticked, color: onCount ? ok : miss });
+
+    return {
+      isQueue: s.screen === "queue", isForm: s.screen === "form", isDoc: s.screen === "doc",
+      warehouseName: wh, warehouseUpper: wh.toUpperCase(), warehouseAddress: whRec.city,
+      isBerlin: isBerlin, needsBattery: !isBerlin,
+      whOpen: s.whOpen,
+      toggleWh: () => this.setState((st) => ({ whOpen: !st.whOpen })),
+      warehouses: WAREHOUSES.map((w) => ({
+        name: w.name, city: w.city, active: w.name === wh,
+        color: w.name === wh ? "var(--blue-600)" : "var(--ink-900)",
+        onPick: () => this.setState({ warehouse: w.name, whOpen: false })
+      })),
+      operator: this.props.operatorName || "M. Alves",
+      operatorInitials: (this.props.operatorName || "M. Alves").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
+      todayLong: days[d.getDay()] + ", " + d.getDate() + " " + months[d.getMonth()],
+      countAll: APPTS.length,
+      countPending: APPTS.filter((r) => !(s.filed[r.bikeId] || r.status === "filed")).length,
+      countFiled: APPTS.filter((r) => s.filed[r.bikeId] || r.status === "filed").length,
+      rows: rows, query: s.query,
+      onQuery: (e) => { const v = e.target.value; this.setState({ query: v }); },
+      periods: [
+        { label: "Today", active: s.period === "today", inactive: s.period !== "today", onPick: () => this.setState({ period: "today" }) },
+        { label: "Next 10 days", active: s.period === "next", inactive: s.period !== "next", onPick: () => this.setState({ period: "next" }) },
+        { label: "Past 10 days", active: s.period === "past", inactive: s.period !== "past", onPick: () => this.setState({ period: "past" }) }
+      ],
+      f: s.f,
+      bikeName: (s.f.brand + " " + s.f.model).trim() || "—",
+      quote: a.quote, slotTime: a.time, bookedName: a.customer,
+      nameChanged: s.f.seller !== a.customer,
+      accCount: onCount + " of 4 handed over",
+      driveFolder: d.getFullYear() + " › " + wh,
+      fileName: "Beleg " + (s.f.bikeId || "—") + ".pdf",
+      accessories: accessories,
+      docAccessories: ACC.map((x) => ({ de: x.de, on: !!s.acc[x.key], off: !s.acc[x.key] })),
+      summary: summary,
+      doc: {
+        bikeId: s.f.bikeId, seller: s.f.seller || "—",
+        bike: (s.f.brand + " " + s.f.model).trim() || "—",
+        mileage: mileageOut, frame: s.f.frame || "—", year: s.f.year || "—", battery: s.f.battery || "—",
+        notes: s.f.notes || "", datum: s.f.datum, uhrzeit: s.f.uhrzeit
+      },
+      setBikeId: this.set("bikeId"), setSeller: this.set("seller"), setBrand: this.set("brand"),
+      setModel: this.set("model"), setMileage: this.set("mileage"), setFrame: this.set("frame"),
+      setYear: this.set("year"), setBattery: this.set("battery"), setNotes: this.set("notes"),
+      generate: () => this.setState((st) => ({ screen: "doc", whOpen: false, filed: Object.assign({}, st.filed, { [st.f.bikeId]: true }) })),
+      doEdit: () => this.setState({ screen: "form", whOpen: false }),
+      doPrint: () => window.print(),
+      toQueue: () => this.setState({ screen: "queue", whOpen: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

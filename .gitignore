@@ -1,0 +1,11 @@
+venv/
+.env
+__pycache__/
+temp_docs/
+credentials.json
+*.zip
+metabase_session.json
+user_settings.json
+secret.key
+legacy_python_app/
+logo_b64.txt
