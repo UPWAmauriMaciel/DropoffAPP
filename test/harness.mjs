@@ -3,9 +3,9 @@
 // (createHtmlOutputFromFile), entao o que este teste carrega e o que o operador recebe.
 import fs from 'fs';
 import path from 'path';
-const repoPath = (f) => path.join(import.meta.dirname, '..', f);
+import { srcPath } from './apps-script.mjs';
 
-const src = fs.readFileSync(repoPath('CheckinPortal.html'), 'utf8');
+const src = fs.readFileSync(srcPath('CheckinPortal.html'), 'utf8');
 
 // Guard permanente: um scriptlet no arquivo significa que o HTML servido != arquivo
 // testado. Foi exatamente isso que causou o "Unexpected end of input" no navegador.

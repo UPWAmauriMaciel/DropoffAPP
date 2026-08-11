@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-const repoPath = (f) => path.join(import.meta.dirname, '..', f);
+import { srcPath } from './apps-script.mjs';
 import { JSDOM } from 'jsdom';
 
 const html = fs.readFileSync(path.join(import.meta.dirname,'portal_harness.html'), 'utf8');

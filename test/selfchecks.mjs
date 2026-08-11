@@ -1,15 +1,12 @@
 /**
- * Roda runSelfChecks() do Code.gs fora do Apps Script.
+ * Roda runSelfChecks() dos arquivos .gs fora do Apps Script.
  *
  * Os helpers puros (formatacao alema, casamento de armazem, nome de arquivo, markup do
  * Beleg) sao testaveis sem rede e sem planilha — basta stubar as globais do Apps Script.
- * runSelfChecks() tambem existe no editor: rode a funcao por lá para validar no ambiente
+ * A mesma funcao existe no editor: rode runSelfChecks() por la para validar no ambiente
  * real, com as APIs de verdade.
  */
-import fs from 'fs';
-import path from 'path';
-
-const repoPath = (f) => path.join(import.meta.dirname, '..', f);
+import { gsSource, gsFiles } from './apps-script.mjs';
 
 // ---- stubs minimos do Apps Script ----
 globalThis.Logger = { log: (m) => console.log(m) };
@@ -32,5 +29,5 @@ globalThis.Utilities = {
 // Sem rede no teste: qrImageSrc cai no fallback, que e o comportamento esperado.
 globalThis.UrlFetchApp = { fetch: () => { throw new Error('sem rede no self-check'); } };
 
-const code = fs.readFileSync(repoPath('Code.gs'), 'utf8');
-new Function(code + '\n;runSelfChecks();')();
+console.log('carregando ' + gsFiles().join(', '));
+new Function(gsSource() + '\n;runSelfChecks();')();

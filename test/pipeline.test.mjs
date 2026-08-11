@@ -2,7 +2,7 @@
 // (nomes de coluna copiados da resposta do hub, com a seta " → ").
 import fs from 'fs';
 import path from 'path';
-const repoPath = (f) => path.join(import.meta.dirname, '..', f);
+import { gsSource } from './apps-script.mjs';
 
 const iso = d => d.toISOString().slice(0, 10);
 const shift = n => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
@@ -65,7 +65,7 @@ globalThis.UrlFetchApp = {
   }
 };
 
-const code = fs.readFileSync(repoPath('Code.gs'), 'utf8');
+const code = gsSource();
 new Function(code + '\n;Object.assign(globalThis,{getMetabaseData,runSelfChecks,matchesWarehouse,rowDateIso,reviewUrlFor,dayFolderName});')();
 
 let fails = 0;
