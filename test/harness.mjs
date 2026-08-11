@@ -18,9 +18,9 @@ const stub = `
 <script>
 window.google = { script: { run: (function(){
   const rows = [
-    { bikeId:"RK2EP9", bikeName:"Stromer ST3", brand:"Stromer", model:"ST3", year:"2022", mileage:"1240", customerName:"Lena Hoffmann", quote:"\\u20ac 1.890", isProcessed:true,
-      saved:{ seller:"Lena Hoffmann", brand:"Stromer", model:"ST3", mileage:"1240", frame:"WBK1234567", year:"2022", battery:"983 Wh", notes:"Kratzer am Rahmen", datum:"09.08.2026", uhrzeit:"11:20", acc:{akku:true,lade:true,schl:true,disp:false} } },
-    { bikeId:"RK2FP1", bikeName:"Riese & M\\u00fcller Charger3 <GT>", brand:"Riese & M\\u00fcller", model:"Charger3 <GT>", year:"2021", mileage:"3480", customerName:"Tobias O'Brien & Sohn", quote:"\\u20ac 2.240", isProcessed:false, saved:null },
+    { bikeId:"RK2EP9", bikeName:"Stromer ST3", brand:"Stromer", model:"ST3", year:"2022", mileage:"1240", customerName:"Lena Hoffmann", email:"lena.hoffmann@gmx.de", quote:"\\u20ac 1.890", isProcessed:true,
+      saved:{ seller:"Lena Hoffmann", email:"lena.arquivada@gmx.de", brand:"Stromer", model:"ST3", mileage:"1240", frame:"WBK1234567", year:"2022", battery:"983 Wh", notes:"Kratzer am Rahmen", datum:"09.08.2026", uhrzeit:"11:20", acc:{akku:true,lade:true,schl:true,disp:false} } },
+    { bikeId:"RK2FP1", bikeName:"Riese & M\\u00fcller Charger3 <GT>", brand:"Riese & M\\u00fcller", model:"Charger3 <GT>", year:"2021", mileage:"3480", customerName:"Tobias O'Brien & Sohn", email:"tobias@web.de", quote:"\\u20ac 2.240", isProcessed:false, saved:null },
     { bikeId:"RK2GU8", bikeName:"Cube Reaction", brand:"Cube", model:"Reaction Hybrid Pro", year:"2023", mileage:"620", customerName:"Miriam Sanders", quote:"\\u20ac 1.150", isProcessed:false, saved:null }
   ];
   const full = { totalRows:rows.length, byWarehouse:{berlin:3}, selectedWarehouse:{today:3,next10days:0,past10days:0,otherDates:0} };

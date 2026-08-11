@@ -58,6 +58,39 @@ ok($('#input-frame').value === 'WBK1234567', 'Rahmennummer salva restaurada (vei
 ok($('#input-notes').value === 'Kratzer am Rahmen', 'Notizen salvas restauradas');
 ok(txt('#handover-meta-cnt') === '3 of 4 handed over', 'acessorios salvos restaurados (3 de 4)');
 
+// --- 4b. E-Mail do cliente: vem do gateway, editavel, e sai no Beleg ---
+ok(!!$('#input-email'), 'campo E-Mail existe no card 1 (Seller & appointment)');
+ok($('#input-email').type === 'email', 'input do tipo email');
+ok($('#input-email').value === 'lena.arquivada@gmx.de',
+   'reabrir restaura o e-mail ARQUIVADO, nao o do agendamento (veio "' + $('#input-email').value + '")');
+ok(/E-Mail/.test(doc.querySelector('#summary-rows-container').textContent), 'painel lateral lista o E-Mail');
+
+// bike sem snapshot: o e-mail vem prefilled do gateway
+click($('#btn-back-queue'));
+const semSnapshot = [...doc.querySelectorAll('#table-rows-container [data-open-bike]')]
+  .find(b => b.getAttribute('data-open-bike') === 'RK2FP1');
+click(semSnapshot);
+ok($('#input-email').value === 'tobias@web.de',
+   'sem snapshot, prefill vem do gateway (veio "' + $('#input-email').value + '")');
+ok($('#input-seller').value === "Tobias O'Brien & Sohn", 'o nome do vendedor continua no card 1');
+
+// editar o campo atualiza estado e painel
+$('#input-email').value = 'novo@upway.shop';
+input($('#input-email'));
+ok(/novo@upway\.shop/.test(doc.querySelector('#summary-rows-container').textContent),
+   'editar o e-mail reflete no painel lateral');
+
+// e chega ao Beleg
+click($('#btn-generate-beleg'));
+await wait(60);
+ok(txt('#doc-email') === 'novo@upway.shop', 'Beleg mostra o e-mail (veio "' + txt('#doc-email') + '")');
+const sec2 = doc.querySelector('#doc-sec2-grid').textContent;
+ok(sec2.indexOf('RAHMENNUMMER') < sec2.indexOf('E-MAIL'), 'E-MAIL fica ao lado da RAHMENNUMMER');
+
+// volta para a bike do snapshot para as secoes seguintes
+click($('#btn-doc-back'));
+click(doc.querySelector('#table-rows-container [data-open-bike]'));
+
 // --- 5. Rahmennummer: valor maiusculo, sem text-transform no elemento ---
 const frame = $('#input-frame');
 frame.value = 'wbk99xz';

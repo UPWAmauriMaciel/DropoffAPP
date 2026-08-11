@@ -243,6 +243,11 @@ function runSelfChecks() {
     // Kilometerstand com separador alemão.
     assert(generateEinlieferungsbelegHTML({ bikeId: 'X1', warehouse: 'berlin', mileage: '1240 km' }).indexOf('1.240 km') !== -1, 'quilometragem sem separador alemão');
 
+    // E-mail do cliente sai no Beleg, ao lado da Rahmennummer.
+    assert(beleg.indexOf('E-MAIL') !== -1, 'Beleg perdeu o rótulo E-MAIL');
+    assert(generateEinlieferungsbelegHTML({ bikeId: 'X1', warehouse: 'berlin', email: 'a@b.de' }).indexOf('a@b.de') !== -1, 'e-mail não saiu no Beleg');
+    assert(generateEinlieferungsbelegHTML({ bikeId: 'X1', warehouse: 'berlin', email: 'x"><b>y' }).indexOf('&quot;&gt;&lt;b&gt;') !== -1, 'e-mail não escapado');
+
     // Nome do cliente com caractere de HTML não pode escapar para o markup.
     assert(generateEinlieferungsbelegHTML({ bikeId: 'X1', warehouse: 'berlin', seller: 'A <b>B' }).indexOf('A &lt;b&gt;B') !== -1, 'seller não escapado');
 

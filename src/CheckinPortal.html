@@ -219,7 +219,7 @@
     .input-ctrl.frame-input { letter-spacing: 0.02em; }
 
     .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 22px; }
-    .grid-seller { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; margin-top: 22px; }
+    .grid-seller { display: grid; grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 22px; }
     .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 22px; }
 
     /* Toggle Tile */
@@ -526,6 +526,10 @@
                   Booked under <span id="booked-seller-name" style="font-weight: 500;"></span>
                 </div>
               </div>
+              <div>
+                <label class="input-label">E-Mail</label>
+                <input type="email" id="input-email" class="input-ctrl" placeholder="kunde@example.com" spellcheck="false" autocapitalize="off">
+              </div>
             </div>
           </div>
 
@@ -739,6 +743,11 @@
             <div class="field-lbl">RAHMENNUMMER</div>
             <div class="field-val" id="doc-frame">—</div>
           </div>
+          <!-- Ocupa a coluna que ficava vazia ao lado da Rahmennummer -->
+          <div class="field-pair">
+            <div class="field-lbl">E-MAIL</div>
+            <div class="field-val" id="doc-email">—</div>
+          </div>
           <div class="field-pair doc-non-berlin-cell" style="display: none;">
             <div class="field-lbl">JAHR</div>
             <div class="field-val" id="doc-year">2022</div>
@@ -931,7 +940,7 @@
       period: "today",
       appointments: [],
       selectedIndex: -1,
-      form: { bikeId: "", seller: "", brand: "", model: "", mileage: "", frame: "", year: "", battery: "", notes: "", datum: "", uhrzeit: "" },
+      form: { bikeId: "", seller: "", email: "", brand: "", model: "", mileage: "", frame: "", year: "", battery: "", notes: "", datum: "", uhrzeit: "" },
       // Nada pré-marcado. O Beleg declara o que o cliente entregou de fato: se Akku e
       // Ladegerät já vêm marcados, um operador com pressa assina um documento afirmando
       // ter recebido peça que não recebeu. O handoff sugeria pré-marcar os dois; aqui
@@ -1082,6 +1091,7 @@
       bindInput("input-brand", "brand");
       bindInput("input-model", "model");
       bindInput("input-mileage", "mileage");
+      bindInput("input-email", "email");
       bindInput("input-frame", "frame", true);
       bindInput("input-year", "year");
       bindInput("input-battery", "battery");
@@ -1201,6 +1211,7 @@
           year: r.year || "",
           mileage: r.mileage || "",
           customer: r.customerName || "—",
+          email: r.email || "",
           quote: r.quote || "€ --",
           saved: r.saved || null,
           filed: isFiled
@@ -1468,6 +1479,7 @@
         brand: s ? (s.brand || appt.brand) : appt.brand,
         model: s ? (s.model || appt.model) : appt.model,
         mileage: s ? (s.mileage || appt.mileage) : appt.mileage,
+        email: s ? (s.email || appt.email || "") : (appt.email || ""),
         frame: s ? (s.frame || "") : "",
         year: s ? (s.year || appt.year || "") : (appt.year || ""),
         battery: s ? (s.battery || "") : "",
@@ -1490,6 +1502,7 @@
       document.getElementById("input-brand").value = state.form.brand;
       document.getElementById("input-model").value = state.form.model;
       document.getElementById("input-mileage").value = state.form.mileage;
+      document.getElementById("input-email").value = state.form.email;
       document.getElementById("input-frame").value = state.form.frame;
       document.getElementById("input-year").value = state.form.year;
       document.getElementById("input-battery").value = state.form.battery;
@@ -1551,6 +1564,7 @@
       const list = [
         { k: "Bike ID", v: state.form.bikeId || "—", color: state.form.bikeId ? okColor : missColor },
         { k: "Verkäufer*in", v: state.form.seller || "—", color: state.form.seller ? okColor : missColor },
+        { k: "E-Mail", v: state.form.email || "Missing", color: state.form.email ? okColor : missColor },
         { k: "Rahmennummer", v: state.form.frame || "Missing", color: state.form.frame ? okColor : missColor },
         { k: "Kilometerstand", v: mileageFormatted, color: mileageClean ? okColor : missColor }
       ];
@@ -1617,6 +1631,7 @@
       const mileageClean = state.form.mileage ? String(state.form.mileage).replace(/[^0-9]/g, "") : "";
       document.getElementById("doc-mileage").textContent = mileageClean ? formatNumberDE(mileageClean) + " km" : "—";
       document.getElementById("doc-frame").textContent = state.form.frame || "—";
+      document.getElementById("doc-email").textContent = state.form.email || "—";
       document.getElementById("doc-year").textContent = state.form.year || "—";
       document.getElementById("doc-battery").textContent = state.form.battery || "—";
 
@@ -1697,6 +1712,7 @@
         brand: state.form.brand,
         model: state.form.model,
         mileage: state.form.mileage,
+        email: state.form.email,
         frame: state.form.frame,
         year: state.form.year,
         battery: state.form.battery,

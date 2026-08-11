@@ -25,6 +25,7 @@ function processDropoffDocument(formData) {
     const brand = String(formData.brand || '').trim();
     const model = String(formData.model || '').trim();
     const mileage = String(formData.mileage || '').trim();
+    const email = String(formData.email || '').trim();
     const frame = String(formData.frame || '').trim().toUpperCase();
     const year = String(formData.year || '').trim();
     const battery = String(formData.battery || '').trim();
@@ -43,6 +44,7 @@ function processDropoffDocument(formData) {
         brand: brand,
         model: model,
         mileage: mileage,
+        email: email,
         frame: frame,
         year: year,
         battery: battery,
@@ -100,7 +102,7 @@ function processDropoffDocument(formData) {
         // sem precisar de uma coluna nova por campo a cada mudança de formulário.
         snapshot: {
             bikeId: bikeId, seller: seller, brand: brand, model: model,
-            mileage: mileage, frame: frame, year: year, battery: battery,
+            mileage: mileage, email: email, frame: frame, year: year, battery: battery,
             notes: damage, datum: datum, uhrzeit: uhrzeit, warehouse: warehouse,
             acc: { akku: akku, lade: lade, schl: schl, disp: disp }
         }
@@ -154,6 +156,7 @@ function generateEinlieferungsbelegHTML(d) {
         }
     }
 
+    const email = escapeHtml(String(d.email || '—').trim());
     const frame = escapeHtml(String(d.frame || '—').trim().toUpperCase());
     const year = escapeHtml(String(d.year || '—').trim());
     const battery = escapeHtml(String(d.battery || '—').trim());
@@ -340,6 +343,11 @@ function generateEinlieferungsbelegHTML(d) {
       <div class="field-pair">
         <div class="field-lbl">RAHMENNUMMER</div>
         <div class="field-val">${frame}</div>
+      </div>
+      <!-- Ocupa a coluna que ficava vazia ao lado da Rahmennummer -->
+      <div class="field-pair">
+        <div class="field-lbl">E-MAIL</div>
+        <div class="field-val">${email}</div>
       </div>
       ${!isBerlin ? `
       <div class="field-pair">
