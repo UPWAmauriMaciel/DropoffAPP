@@ -243,6 +243,12 @@ function runSelfChecks() {
     // Kilometerstand com separador alemão.
     assert(generateEinlieferungsbelegHTML({ bikeId: 'X1', warehouse: 'berlin', mileage: '1240 km' }).indexOf('1.240 km') !== -1, 'quilometragem sem separador alemão');
 
+    // Folha do PDF com folga: 297mm exatos transbordam por arredondamento e o
+    // conversor emite uma folha em branco depois de cada pagina.
+    assert(beleg.indexOf('height: 296mm') !== -1, 'folha do PDF perdeu a folga de 1mm');
+    assert(beleg.indexOf('height: 297mm') === -1, 'altura exata de 297mm voltou ao PDF');
+    assert((beleg.match(/page-break-after: always/g) || []).length === 1, 'so a pagina 1 pode forcar quebra');
+
     // E-mail do cliente sai no Beleg, ao lado da Rahmennummer.
     assert(beleg.indexOf('E-MAIL') !== -1, 'Beleg perdeu o rótulo E-MAIL');
     assert(generateEinlieferungsbelegHTML({ bikeId: 'X1', warehouse: 'berlin', email: 'a@b.de' }).indexOf('a@b.de') !== -1, 'e-mail não saiu no Beleg');

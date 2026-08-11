@@ -213,7 +213,9 @@ function generateEinlieferungsbelegHTML(d) {
        folha; a margem lateral do texto vem do padding (= 60/64/52px do design). */
     .a4-page {
       width: 210mm;
-      height: 297mm;
+      /* 296mm: folha do mesmo tamanho do box da pagina transborda por arredondamento
+         e gera uma folha em branco depois de cada pagina. 1mm de folga e invisivel. */
+      height: 296mm;
       box-sizing: border-box;
       background: #FFFFFF;
       position: relative;

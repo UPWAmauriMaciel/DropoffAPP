@@ -242,6 +242,10 @@ ok(/width:\s*210mm\s*!important/.test(html), 'folha fixada em 210mm (nao width:1
 ok(!/width:\s*100%\s*!important/.test(html), 'width:100% na impressao removido — era o que esticava');
 ok(/padding:\s*15\.9mm\s*16\.9mm/.test(html), 'margem lateral de 16.9mm (= 64px do design)');
 ok(/\.a4-page:last-child[\s\S]{0,120}break-after:\s*auto/.test(html), 'ultima folha nao gera pagina em branco');
+ok(/height:\s*296mm\s*!important/.test(html), 'folha com 1mm de folga (297mm exatos transbordam e geram folha em branco)');
+ok(/min-height:\s*0\s*!important/.test(html), 'min-height zerado, senao venceria a reducao da altura');
+ok(!/min-height:\s*297mm/.test(html), 'min-height de 297mm removido');
+ok(/overflow:\s*hidden\s*!important/.test(html), 'conteudo que nao cabe e cortado, nao empurrado para outra folha');
 
 // volta para a tela do documento com uma bike DIFERENTE (beleg novo, ainda nao gravado)
 click([...doc.querySelectorAll('#table-rows-container [data-open-bike]')][1]);

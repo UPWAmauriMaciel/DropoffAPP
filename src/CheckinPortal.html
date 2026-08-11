@@ -379,8 +379,15 @@
         box-shadow: none !important;
         margin: 0 auto !important;
         width: 210mm !important;
-        height: 297mm !important;
-        min-height: 297mm !important;
+        /* 296mm, não 297: com a folha do MESMO tamanho do box da página, arredondamento
+           de fração de pixel faz o conteúdo transbordar e o navegador abre uma página em
+           branco depois de cada folha. 1mm de folga resolve e é invisível no papel.
+           `min-height` sai de cena — em 297mm ela venceria a redução do `height`. */
+        height: 296mm !important;
+        min-height: 0 !important;
+        /* Mesma regra do PDF do servidor: conteúdo que não cabe é cortado, não empurrado
+           para uma folha nova — impresso e arquivado precisam ter o mesmo número de páginas. */
+        overflow: hidden !important;
         /* = 60/64/52px do design, convertidos a 96dpi */
         padding: 15.9mm 16.9mm 13.8mm !important;
         page-break-after: always !important;
