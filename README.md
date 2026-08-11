@@ -127,6 +127,25 @@ A URL `/exec` serve a última **implantação**, não o código atual: `push` so
 o que a equipe vê. E o bloco `webapp` do manifest só se aplica a implantações novas —
 depois de mudar acesso, confira o campo em *Gerenciar implantações*.
 
+## Concorrência
+
+Dimensionado para os balcões dos oito UpCenters operando ao mesmo tempo.
+
+- **Uma query no Metabase por minuto, não por clique.** A resposta do card fica em
+  `CacheService` por 60s (`Gateway.gs`). O filtro de armazém e período é aplicado em
+  memória, então trocar de aba não gera tráfego. Dez balcões abrindo o portal ao mesmo
+  tempo = **uma** query.
+- **A gravação na planilha é serializada.** `logDropoffToSheet` pega `LockService` antes do
+  read-modify-write: sem ele, dois balcões arquivando ao mesmo tempo podiam fazer o
+  `setValues` sobrescrever a linha de outro drop-off.
+- **A preferência de armazém é por operador** (`UserProperties`). Em `ScriptProperties` era
+  um valor único do script, e Berlim sobrescrevia Düsseldorf.
+- **Quota:** com `executeAs: USER_DEPLOYING` todas as execuções contam no bucket do dono —
+  o teto relevante é *30 execuções simultâneas*. Cada ação do portal dura poucos segundos,
+  e a geração do PDF (~4s) é o trecho mais longo; dez operadores ficam uma ordem de
+  grandeza abaixo do limite. O sintoma, se um dia encostar, é
+  `Too many simultaneous invocations`.
+
 ## Decisões que parecem estranhas e não são
 
 Cada uma destas custou uma sessão de depuração. Estão comentadas no código também.

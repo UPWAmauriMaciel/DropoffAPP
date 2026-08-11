@@ -39,10 +39,18 @@ globalThis.PropertiesService = {
     setProperty: (k, v) => { props[k] = v; },
     deleteProperty: k => { delete props[k]; }
   }),
-  getUserProperties: () => ({ getProperty: () => null, deleteProperty: () => {} })
+  getUserProperties: () => ({
+    getProperty: k => props['u:'+k] || null,
+    setProperty: (k, v) => { props['u:'+k] = v; },
+    deleteProperty: k => { delete props['u:'+k]; }
+  })
 };
 globalThis.SpreadsheetApp = { getActiveSpreadsheet: () => ({ getSheetByName: () => null }) };
 globalThis.__rows = [];
+globalThis.LockService = { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) };
+let cacheStore = {};
+globalThis.CacheService = { getScriptCache: () => ({ get: k => cacheStore[k] || null, put: (k,v) => { cacheStore[k]=v; }, remove: k => { delete cacheStore[k]; } }) };
+globalThis.__cache = { clear: () => { cacheStore = {}; }, size: () => Object.keys(cacheStore).length };
 globalThis.Logger = { log: m => console.log(m) };
 globalThis.HtmlService = { createHtmlOutputFromFile: () => ({ getContent: () => 'data:image/png;base64,AAA' }) };
 globalThis.Utilities = {
@@ -52,11 +60,13 @@ globalThis.Utilities = {
 globalThis.ScriptApp = { getOAuthToken: () => 'tok' };
 globalThis.Session = { getActiveUser: () => ({ getEmail: () => 'amigo@gmail.com' }) };
 let lastFetchHeaders = null;
+let hubCalls = 0;
 let hubStatus = 200;
 globalThis.UrlFetchApp = {
   fetch: (url, opts) => {
     if (url.indexOf('qrserver') !== -1) return { getResponseCode: () => 500, getContentText: () => '' };
     lastFetchHeaders = opts.headers;
+    hubCalls++;
     if (hubStatus !== 200) {
       // pagina de erro do Google, como veio na conta sem acesso ao hub
       return { getResponseCode: () => hubStatus, getContentText: () => '<!DOCTYPE html><html lang="en"><head><script nonce="x">window[\'ppConfig\'] = {productName: \'abc\'}' };
@@ -66,7 +76,7 @@ globalThis.UrlFetchApp = {
 };
 
 const code = gsSource();
-new Function(code + '\n;Object.assign(globalThis,{getMetabaseData,runSelfChecks,matchesWarehouse,rowDateIso,reviewUrlFor,dayFolderName});')();
+new Function(code + '\n;Object.assign(globalThis,{getMetabaseData,runSelfChecks,matchesWarehouse,rowDateIso,reviewUrlFor,dayFolderName,fetchHubDataUncached,logDropoffToSheet,SHEET_HEADERS});')();
 
 let fails = 0;
 const ok = (c, n) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) fails++; };
@@ -118,6 +128,7 @@ ok(reviewUrlFor({ name: 'Berlin', city: 'x', gpageId: 'CZuAldi1qpuUEBM' })
 // --- conta sem acesso ao hub: mensagem acionavel, sem HTML na tela ---
 for (const status of [403, 401]) {
   hubStatus = status;
+  globalThis.__cache.clear();
   const denied = getMetabaseData({ warehouse: 'berlin', dateFilter: 'today' });
   ok(!!denied.error, status + ': devolve erro');
   ok(denied.error.indexOf('amigo@gmail.com') !== -1, status + ': nomeia a conta que foi recusada');
@@ -127,10 +138,47 @@ for (const status of [403, 401]) {
   ok(!denied.rows, status + ': nao devolve linha nenhuma');
 }
 hubStatus = 500;
+globalThis.__cache.clear();
 const boom = getMetabaseData({ warehouse: 'berlin', dateFilter: 'today' });
 ok(boom.error.indexOf('HTTP 500') !== -1 && boom.error.indexOf('página HTML') !== -1,
    '500 com corpo HTML: reporta o status sem colar o markup');
 hubStatus = 200;
+
+
+// --- 10 balcoes ao mesmo tempo: estado compartilhado e carga no Metabase ---
+globalThis.__cache.clear();
+hubCalls = 0;
+for (let i = 0; i < 10; i++) getMetabaseData({ warehouse: 'berlin', dateFilter: 'today' });
+ok(hubCalls === 1, '10 cargas simultaneas = 1 query no Metabase (veio ' + hubCalls + ')');
+
+hubCalls = 0;
+getMetabaseData({ warehouse: 'dusseldorf', dateFilter: 'next10days' });
+getMetabaseData({ warehouse: 'stuttgart', dateFilter: 'past10days' });
+ok(hubCalls === 0, 'trocar armazem e periodo filtra em memoria, sem ir ao hub');
+
+hubCalls = 0;
+fetchHubDataUncached();
+ok(hubCalls === 1, 'diagnostico ignora o cache e ve o hub agora');
+
+// preferencia de armazem e POR OPERADOR: em ScriptProperties um balcao sobrescrevia o outro
+ok(props['u:WAREHOUSE'] === 'stuttgart', 'armazem escolhido vai para UserProperties');
+ok(props['WAREHOUSE'] === undefined, 'nada de WAREHOUSE global em ScriptProperties');
+
+// gravacao na planilha sob lock
+let locks = 0, releases = 0;
+globalThis.LockService = { getScriptLock: () => ({ tryLock: () => { locks++; return true; }, releaseLock: () => { releases++; } }) };
+const sheetRows = [];
+globalThis.SpreadsheetApp = { getActiveSpreadsheet: () => ({
+  getSheetByName: () => ({
+    getRange: () => ({ getValue: () => 'Operador', setValues: () => {}, setFontWeight: () => ({ setBackground: () => {} }) }),
+    getDataRange: () => ({ getValues: () => [SHEET_HEADERS] }),
+    appendRow: (r) => sheetRows.push(r)
+  })
+}) };
+logDropoffToSheet({ bikeId: 'RK2AA1', datum: '11.08.2026', seller: 'X', bikeName: 'Y', mileage: '10', accessories: 'Akku', damage: '', pdfUrl: 'u', snapshot: {} });
+ok(locks === 1 && releases === 1, 'gravacao pega e solta o lock (read-modify-write protegido)');
+ok(sheetRows.length === 1 && sheetRows[0].length === SHEET_HEADERS.length, 'linha gravada com todas as colunas');
+ok(sheetRows[0][10] === 'amigo@gmail.com', 'coluna Operador preenchida (trilha de auditoria)');
 
 console.log('\n' + (fails ? fails + ' FALHA(S)' : 'pipeline: todos os checks passaram'));
 process.exit(fails ? 1 : 0);

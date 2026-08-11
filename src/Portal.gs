@@ -83,14 +83,17 @@ function showCheckinPortal() {
 
 
 /**
- * Retrieves stored application configuration from PropertiesService
+ * Último armazém escolhido, POR OPERADOR.
+ *
+ * Ficava em ScriptProperties, que é um valor único para o script inteiro: com Berlim e
+ * Düsseldorf abertos ao mesmo tempo, cada carga sobrescrevia a escolha do outro balcão.
+ * UserProperties é por conta, que é a granularidade certa para uma preferência de tela.
  */
 function getAppConfig() {
-    const props = PropertiesService.getScriptProperties();
     const userProps = PropertiesService.getUserProperties();
 
     return {
-        warehouse: props.getProperty('WAREHOUSE') || userProps.getProperty('WAREHOUSE') || CONFIG.DEFAULT_WAREHOUSE,
+        warehouse: userProps.getProperty('WAREHOUSE') || CONFIG.DEFAULT_WAREHOUSE,
         driveFolderId: CONFIG.SHARED_DRIVE_FOLDER_ID
     };
 }
@@ -100,11 +103,14 @@ function getAppConfig() {
  * Saves application configuration (só o armazém — a pasta do Drive é constante)
  */
 function saveAppConfig(warehouse) {
+    const userProps = PropertiesService.getUserProperties();
+    if (warehouse) userProps.setProperty('WAREHOUSE', warehouse.toLowerCase());
+
+    // Limpa o que versões anteriores gravaram: o ID de pasta do Drive vencia a constante
+    // e mandava PDF para o lugar errado; o WAREHOUSE global era o valor compartilhado.
     const props = PropertiesService.getScriptProperties();
-    if (warehouse) props.setProperty('WAREHOUSE', warehouse.toLowerCase());
-    // Limpa o ID de pasta gravado por versões anteriores: enquanto ele existir,
-    // qualquer correção em CONFIG.SHARED_DRIVE_FOLDER_ID é ignorada.
     props.deleteProperty('DRIVE_FOLDER');
-    PropertiesService.getUserProperties().deleteProperty('DRIVE_FOLDER');
+    props.deleteProperty('WAREHOUSE');
+    userProps.deleteProperty('DRIVE_FOLDER');
     return true;
 }

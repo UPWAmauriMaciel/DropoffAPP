@@ -9,6 +9,8 @@
 import { gsSource, gsFiles } from './apps-script.mjs';
 
 // ---- stubs minimos do Apps Script ----
+globalThis.LockService = { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) };
+globalThis.CacheService = { getScriptCache: () => ({ get: () => null, put: () => {}, remove: () => {} }) };
 globalThis.Logger = { log: (m) => console.log(m) };
 globalThis.Session = { getActiveUser: () => ({ getEmail: () => 'operador@upway.shop' }) };
 globalThis.ScriptApp = { getOAuthToken: () => 'stub-token' };

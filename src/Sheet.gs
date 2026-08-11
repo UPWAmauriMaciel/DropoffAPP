@@ -84,6 +84,23 @@ function readSheetState() {
  * Logs or updates drop-off record in 'Drop-offs' sheet tab
  */
 function logDropoffToSheet(data) {
+    // Ler a planilha, decidir a linha e só então escrever é read-modify-write. Com dois
+    // balcões arquivando ao mesmo tempo, a linha alvo pode mudar entre a leitura e a
+    // escrita e o setValues sobrescreve o registro de OUTRO drop-off. Num log com valor
+    // de auditoria isso é perda de dado, não corrida benigna.
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(30000)) {
+        throw new Error('A planilha está ocupada por outro balcão. O PDF já está no Drive — tente "Save to Drive & close" novamente em alguns segundos.');
+    }
+    try {
+        writeDropoffRow(data);
+    } finally {
+        lock.releaseLock();
+    }
+}
+
+/** Corpo da gravação. Só chamar com o lock de logDropoffToSheet em mãos. */
+function writeDropoffRow(data) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     let sheet = ss.getSheetByName(SHEET_NAME);
     const cols = SHEET_HEADERS.length;

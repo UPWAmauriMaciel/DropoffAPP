@@ -149,7 +149,8 @@ function diagnoseRows() {
     });
 
     // 2. Valores crus do card, direto do hub, sem passar pelo filtro.
-    const hub = fetchHubData();
+    // Sem cache: um diagnóstico tem que mostrar o que o hub responde AGORA.
+    const hub = fetchHubDataUncached();
     if (hub.error) {
         lines.push('', 'hub: ' + hub.error);
     } else if (Array.isArray(hub.data)) {

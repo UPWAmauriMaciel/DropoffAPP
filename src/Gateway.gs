@@ -45,8 +45,44 @@ function looksLikeHtml(body) {
 }
 
 
-/** Chama o hub e devolve { data } ou { error } já legível para a UI. */
+/**
+ * Chama o hub e devolve { data } ou { error } já legível para a UI.
+ *
+ * O card inteiro vem numa tacada e o filtro (armazém, período) é aplicado depois, em
+ * memória. Isso torna a resposta cacheável: sem cache, cada carga de tela, troca de
+ * período e troca de armazém disparava uma query no Metabase — com 10 balcões abertos
+ * isso multiplica por 10 sem que nenhum dado tenha mudado.
+ *
+ * TTL curto de propósito: 60s corta a rajada de aberturas simultâneas e ainda deixa um
+ * agendamento novo aparecer no minuto seguinte.
+ */
+var HUB_CACHE_KEY = 'hub_card_' + CONFIG.CARD_ID;
+var HUB_CACHE_TTL = 60;
+
 function fetchHubData() {
+    const cache = CacheService.getScriptCache();
+
+    const cached = cache.get(HUB_CACHE_KEY);
+    if (cached) {
+        try {
+            return { data: JSON.parse(cached), cached: true };
+        } catch (e) {
+            cache.remove(HUB_CACHE_KEY);
+        }
+    }
+
+    const fresh = fetchHubDataUncached();
+    if (!fresh.error) {
+        // Limite do CacheService é 100 KB por valor. Acima disso o put falha calado,
+        // então nem tenta — degrada para "sem cache", não para "cache quebrado".
+        const raw = JSON.stringify(fresh.data);
+        if (raw.length < 100000) cache.put(HUB_CACHE_KEY, raw, HUB_CACHE_TTL);
+    }
+    return fresh;
+}
+
+/** Ignora o cache e vai ao hub. Usado pelos diagnósticos e pelo fetchHubData. */
+function fetchHubDataUncached() {
     const r = hubRequest();
 
     if (r.exception) {
