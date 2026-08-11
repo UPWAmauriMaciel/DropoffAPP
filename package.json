@@ -1,0 +1,12 @@
+{
+  "name": "upway-dropoff-portal",
+  "private": true,
+  "description": "Portal de check-in / Einlieferungsbeleg do balcao Upway (Google Apps Script)",
+  "scripts": {
+    "test": "node test/selfchecks.mjs && node test/pipeline.test.mjs && node test/harness.mjs && node test/portal.test.mjs",
+    "push": "clasp push --force"
+  },
+  "devDependencies": {
+    "jsdom": "^30.0.0"
+  }
+}

@@ -51,10 +51,10 @@
       font-weight: 600;
       border: 1px solid transparent;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.18s cubic-bezier(0.2, 0, 0, 1);
       user-select: none;
     }
-    .btn:active { transform: scale(0.98); }
+    .btn:active { transform: scale(0.97); }
     .btn-primary { background: var(--blue-500); color: var(--white); border-color: var(--blue-500); }
     .btn-primary:hover { background: var(--blue-600); border-color: var(--blue-600); }
     .btn-secondary { background: var(--white); color: var(--ink-900); border-color: var(--ink-300); }
@@ -80,7 +80,6 @@
       -webkit-backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--ink-200);
     }
-    .header-logo { height: 16px; width: auto; display: block; }
     .header-divider { width: 1px; height: 20px; background: var(--ink-200); }
     .header-title { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; color: var(--ink-700); }
     
@@ -97,7 +96,7 @@
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
-      transition: border-color 0.15s ease;
+      transition: border-color 0.18s cubic-bezier(0.2, 0, 0, 1);
       user-select: none;
     }
     .wh-trigger:hover { border-color: var(--ink-500); }
@@ -126,7 +125,7 @@
       padding: 10px 12px;
       border-radius: 9px;
       cursor: pointer;
-      transition: background 0.15s ease;
+      transition: background 0.18s cubic-bezier(0.2, 0, 0, 1);
     }
     .wh-item:hover { background: var(--ink-100); }
 
@@ -172,7 +171,7 @@
       cursor: pointer;
       color: var(--ink-600);
       user-select: none;
-      transition: all 0.15s ease;
+      transition: all 0.18s cubic-bezier(0.2, 0, 0, 1);
     }
     .segment-btn:hover { background: var(--ink-100); }
     .segment-btn.active { background: var(--blue-500); color: var(--white); }
@@ -215,7 +214,9 @@
       background: var(--white);
     }
     .input-ctrl.bike-id-input { font-size: 16px; font-weight: 700; letter-spacing: 0.03em; color: var(--blue-600); text-transform: uppercase; }
-    .input-ctrl.frame-input { letter-spacing: 0.02em; text-transform: uppercase; }
+    /* Sem text-transform: uppercase — o valor já é maiúsculo pelo JS e o placeholder
+       ("Read off the frame") não deve sair gritando. Regra explícita do handoff. */
+    .input-ctrl.frame-input { letter-spacing: 0.02em; }
 
     .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 22px; }
     .grid-seller { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; margin-top: 22px; }
@@ -234,7 +235,7 @@
       background: var(--white);
       cursor: pointer;
       user-select: none;
-      transition: all 0.15s ease;
+      transition: all 0.18s cubic-bezier(0.2, 0, 0, 1);
     }
     .acc-tile:hover { border-color: var(--ink-500); }
     .acc-tile.active { border-color: var(--blue-500); background: var(--blue-50); }
@@ -283,7 +284,6 @@
     }
     .a4-top-bar { position: absolute; top: 0; left: 0; right: 0; height: 5px; background: var(--blue-500); }
     .a4-header { display: flex; align-items: flex-start; justify-content: space-between; }
-    .a4-logo { height: 20px; width: auto; display: block; }
     .a4-wh-info { text-align: right; font-size: 11px; line-height: 1.5; color: var(--ink-500); }
     .a4-wh-title { font-weight: 700; letter-spacing: 0.06em; color: var(--ink-900); }
 
@@ -303,7 +303,7 @@
     .loading-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.6);
+      background: rgba(14, 14, 20, 0.55);
       backdrop-filter: blur(4px);
       -webkit-backdrop-filter: blur(4px);
       display: none;
@@ -320,10 +320,22 @@
       flex-direction: column;
       align-items: center;
       gap: 16px;
-      box-shadow: 0 20px 30px rgba(0,0,0,0.25);
+      box-shadow: 0 12px 32px rgba(14,14,20,.14);
       text-align: center;
       max-width: 380px;
     }
+
+    /* Estado de erro do gateway — paleta do design system, sem âmbar improvisado. */
+    .error-card {
+      margin-top: 20px;
+      padding: 28px 26px;
+      background: var(--white);
+      border: 1px solid var(--ink-200);
+      border-radius: 20px;
+      text-align: center;
+    }
+    .error-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+    .error-body { margin: 8px auto 0; max-width: 520px; font-size: 13.5px; line-height: 1.55; color: var(--ink-600); }
     .spinner-ring {
       width: 48px;
       height: 48px;
@@ -343,36 +355,62 @@
       .grid-seller { grid-template-columns: 1fr; }
     }
 
-    /* Print Styles */
+    /* Print Styles
+       A folha da tela já É A4: 794x1123px a 96dpi = 210x297mm. O erro anterior era
+       `width: 100%`, que esticava a folha na largura do papel e ainda somava a margem
+       do navegador — tudo saía largo demais. Aqui a folha é fixada em mm e a margem
+       lateral vem do padding, igual ao modal. */
+    @page { size: A4; margin: 0; }
+
     @media print {
+      /* O Chrome imprime com "Gráficos de segundo plano" DESLIGADO por padrão, e aí
+         toda cor de `background` é descartada: o quadradinho azul do Zubehör some (e o
+         ✓ branco fica branco no branco), a barra azul do topo some e as réguas das
+         seções, que são divs de 1px com background, somem também. Isto força as cores. */
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
       body { background: #fff !important; }
       .no-print, .app-header, .doc-action-bar { display: none !important; }
       .doc-bg { background: none !important; min-height: auto !important; }
-      .doc-pages-wrap { padding: 0 !important; gap: 0 !important; }
+      .doc-pages-wrap { padding: 0 !important; gap: 0 !important; display: block !important; }
       .a4-page {
         box-shadow: none !important;
-        margin: 0 !important;
-        width: 100% !important;
-        min-height: 100vh !important;
+        margin: 0 auto !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        min-height: 297mm !important;
+        /* = 60/64/52px do design, convertidos a 96dpi */
+        padding: 15.9mm 16.9mm 13.8mm !important;
         page-break-after: always !important;
         break-after: page !important;
-        padding: 50px 50px 40px !important;
       }
+      /* Sem isto o `always` da última folha gera uma página em branco no fim. */
+      .a4-page:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
+      .a4-footer { left: 16.9mm !important; right: 16.9mm !important; bottom: 9.5mm !important; }
     }
   </style>
 </head>
 <body>
 
+  <!--
+    Wordmark oficial (export do asset real — não redesenhar). Definido UMA vez como
+    <symbol> e reusado com <use>: é o jeito nativo de repetir SVG, sem três cópias do
+    path. viewBox recortado nos limites do desenho, proporção 724x189.
+  -->
+  <svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
+    <symbol id="upway-wordmark" viewBox="59 203 724 189">
+      <path fill="#4733FF" d="M59.17,279.81v-73.25h33.84v73.25c0,16.94,10.58,29.07,26.72,29.07c15.59,0,25.65-12.17,25.65-29.07v-73.25h33.84v73.25c0,36.51-24.06,62.39-59.49,62.39C83.74,342.21,59.17,316.28,59.17,279.81z M191.11,391.64v-126.1c0-36.51,26.45-62.39,63.99-62.39c38.61,0,66.09,28.27,66.09,68.48c0,39.41-30.14,67.45-72.46,67.45h-23.78v52.61h-33.84V391.64z M255.38,305.7c18.77,0,32.01-14.28,32.01-34.64s-13.48-34.64-32.25-34.64c-17.74,0-30.14,12.17-30.14,29.07v40.2H255.38z M333.12,302.8v-96.24h33.84v96c0,3.7,2.62,6.36,6.6,6.36c3.42,0,5.81-2.11,6.6-5.29l15.35-70.07c4.22-19.29,18.25-30.42,35.71-30.42c21.43,0,37.54,16.94,36.23,40.72l-3.18,58.46c-0.28,3.42,2.11,6.6,6.36,6.6c3.18,0,5.81-1.87,6.6-4.77l26.96-97.59h35.15l-29.07,106.02c-4.77,17.46-20.36,29.63-39.93,29.63c-20.88,0-38.1-17.18-36.74-41.52l3.18-58.46c0.28-3.42-2.11-5.81-5.57-5.81c-2.9,0-5.29,1.87-5.81,4.49l-15.35,70.35c-3.98,18.25-19.84,30.94-37.3,30.94C350.06,342.21,333.12,325.82,333.12,302.8z M524.84,305.46c0-10.86,5.01-21.43,16.38-30.14l50.78-39.13h-34.36v-29.63h89.91v81.96h-31.22v-32.25l-53.41,41.8c-2.11,1.59-2.62,2.9-2.62,5.01c0,2.39,2.39,4.49,5.01,4.49h83.31v31.22h-90.15C539.63,338.79,524.84,323.72,524.84,305.46z M671.06,358.35h61.88c8.71,0,16.15-6.08,16.15-14.28v-17.74c-5.81,8.99-17.97,15.87-31.73,15.87c-34.12,0-54.48-21.16-54.48-55.28v-80.37h33.84v75.88c0,16.66,10.86,26.45,26.17,26.45c15.35,0,26.17-12.45,26.17-29.07v-73.25h33.84v135.65c0,27.24-22.47,49.43-49.99,49.43h-61.88v-33.29H671.06z"/>
+    </symbol>
+  </svg>
+
   <!-- PERSISTENT HEADER -->
   <header class="app-header no-print">
-    <!-- Upway Logo SVG -->
-    <svg class="header-logo" viewBox="0 0 148 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M14.2 0H20.4V14.8C20.4 19.8 16.6 23.4 10.2 23.4C3.8 23.4 0 19.8 0 14.8V0H6.2V14.6C6.2 17.2 7.8 18.7 10.2 18.7C12.6 18.7 14.2 17.2 14.2 14.6V0Z" fill="#4733FF"/>
-      <path d="M24.8 6.4H30.6V8.6C31.7 7.1 33.7 6.2 36.2 6.2C41.2 6.2 44.4 10.1 44.4 15.1C44.4 20.1 41.2 24 36.2 24C33.7 24 31.7 23.1 30.6 21.6V30H24.8V6.4ZM34.5 19.3C37.3 19.3 38.6 17.6 38.6 15.1C38.6 12.6 37.3 10.9 34.5 10.9C31.7 10.9 30.4 12.6 30.4 15.1C30.4 17.6 31.7 19.3 34.5 19.3Z" fill="#4733FF"/>
-      <path d="M48.2 6.4H54L57.2 17.4L60.5 6.4H65.8L69.1 17.4L72.3 6.4H78.1L72.8 23.4H66.8L63.2 11.9L59.6 23.4H53.6L48.2 6.4Z" fill="#4733FF"/>
-      <path d="M89.4 6.4H95.2V23.4H89.4V21.4C88.2 23 86.2 24 83.6 24C78.9 24 76 20.4 76 15.2C76 10 78.9 6.4 83.6 6.4C86.2 6.4 88.2 7.4 89.4 9V6.4ZM85.5 19.3C88.2 19.3 89.5 17.6 89.5 15.2C89.5 12.8 88.2 11.1 85.5 11.1C82.8 11.1 81.5 12.8 81.5 15.2C81.5 17.6 82.8 19.3 85.5 19.3Z" fill="#4733FF"/>
-      <path d="M99.5 6.4H105.5L109.8 16.3L114.1 6.4H120.1L111.8 23.2L107.5 31.8H101.8L105.8 23.7L99.5 6.4Z" fill="#4733FF"/>
-    </svg>
+    <svg width="61" height="16" role="img" aria-label="Upway" style="display: block"><use href="#upway-wordmark"/></svg>
 
     <div class="header-divider"></div>
     <div class="header-title">Drop-off desk</div>
@@ -396,7 +434,7 @@
     <div class="queue-container">
       <div class="queue-head">
         <div>
-          <div class="queue-eyebrow">Today's schedule</div>
+          <div class="queue-eyebrow" id="queue-eyebrow">Today's schedule</div>
           <h1 class="queue-title" id="queue-date-title">Monday, 10 August</h1>
           <div class="queue-address">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-400)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"></path><circle cx="12" cy="10" r="2.6"></circle></svg>
@@ -428,9 +466,11 @@
         </div>
 
         <div class="segmented-control">
+          <!-- data-period usa o vocabulário do servidor: sem tradução no meio, sem
+               "next"/"past" caindo silenciosamente em "today". -->
           <div class="segment-btn active" data-period="today">Today</div>
-          <div class="segment-btn" data-period="next">Next 10 days</div>
-          <div class="segment-btn" data-period="past">Past 10 days</div>
+          <div class="segment-btn" data-period="next10days">Next 10 days</div>
+          <div class="segment-btn" data-period="past10days">Past 10 days</div>
         </div>
       </div>
 
@@ -448,6 +488,9 @@
           <!-- Rows rendered dynamically -->
         </div>
       </div>
+
+      <!-- Estado de falha do gateway (substitui a tabela; nunca dados de exemplo) -->
+      <div id="queue-feedback" style="display: none;"></div>
     </div>
   </main>
 
@@ -531,32 +574,30 @@
             <div class="card-head">
               <span class="step-num">3</span>
               <span class="card-title">Handover</span>
-              <span class="card-meta" id="handover-meta-cnt">2 of 4 handed over</span>
+              <span class="card-meta" id="handover-meta-cnt">0 of 4 handed over</span>
             </div>
 
             <div class="grid-4">
               <!-- Tile 1: Akku -->
-              <div class="acc-tile active" data-acc="akku">
+              <div class="acc-tile" data-acc="akku">
                 <div class="tile-top">
                   <span class="tile-icon">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2"></rect><path d="M22 11v2"></path><path d="M6 11v2M10 11v2"></path></svg>
                   </span>
-                  <span class="tile-check">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
-                  </span>
+                  <span class="tile-check"></span>
                 </div>
                 <span class="tile-label">Akku</span>
               </div>
 
               <!-- Tile 2: Ladegerät -->
-              <div class="acc-tile active" data-acc="lade">
+              <div class="acc-tile" data-acc="lade">
                 <div class="tile-top">
                   <span class="tile-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6M15 2v6"></path><rect x="6" y="8" width="12" height="7" rx="2"></rect><path d="M12 15v7"></path></svg>
+                    <!-- Lucide "plug": corpo com base arredondada e os dois pinos; antes era
+                         um retângulo simples, que não lia como carregador -->
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"></path><path d="M9 8V2"></path><path d="M15 8V2"></path><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"></path></svg>
                   </span>
-                  <span class="tile-check">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
-                  </span>
+                  <span class="tile-check"></span>
                 </div>
                 <span class="tile-label">Ladegerät</span>
               </div>
@@ -565,7 +606,8 @@
               <div class="acc-tile" data-acc="schl">
                 <div class="tile-top">
                   <span class="tile-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4.5"></circle><path d="M11.2 11.2L21 21M17.5 17.5l2-2M14.5 14.5l2-2"></path></svg>
+                    <!-- Lucide "key": anel embaixo à esquerda, haste subindo à direita com os dentes -->
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"></circle><path d="M21 2l-9.6 9.6"></path><path d="M15.5 7.5l3 3L22 7l-3-3"></path></svg>
                   </span>
                   <span class="tile-check"></span>
                 </div>
@@ -576,7 +618,8 @@
               <div class="acc-tile" data-acc="disp">
                 <div class="tile-top">
                   <span class="tile-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+                    <!-- Lucide "monitor": tela 20x14 e o pé centrado -->
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8"></path><path d="M12 17v4"></path></svg>
                   </span>
                   <span class="tile-check"></span>
                 </div>
@@ -635,8 +678,9 @@
 
         <div class="doc-actions-right">
           <button class="btn btn-secondary" id="btn-doc-edit">Edit details</button>
-          <button class="btn btn-secondary" id="btn-doc-print">Print</button>
-          <button class="btn btn-primary" id="btn-doc-save">Save to Drive &amp; close</button>
+          <button class="btn btn-secondary" id="btn-doc-save">Save to Drive &amp; close</button>
+          <!-- Ação principal do balcão: grava no Drive e manda o PDF para a impressora. -->
+          <button class="btn btn-primary" id="btn-doc-print">Print &amp; save</button>
         </div>
       </div>
     </div>
@@ -648,14 +692,7 @@
       <div class="a4-page">
         <div class="a4-top-bar"></div>
         <div class="a4-header">
-          <!-- Logo -->
-          <svg class="a4-logo" viewBox="0 0 148 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M14.2 0H20.4V14.8C20.4 19.8 16.6 23.4 10.2 23.4C3.8 23.4 0 19.8 0 14.8V0H6.2V14.6C6.2 17.2 7.8 18.7 10.2 18.7C12.6 18.7 14.2 17.2 14.2 14.6V0Z" fill="#0E0E14"/>
-            <path d="M24.8 6.4H30.6V8.6C31.7 7.1 33.7 6.2 36.2 6.2C41.2 6.2 44.4 10.1 44.4 15.1C44.4 20.1 41.2 24 36.2 24C33.7 24 31.7 23.1 30.6 21.6V30H24.8V6.4ZM34.5 19.3C37.3 19.3 38.6 17.6 38.6 15.1C38.6 12.6 37.3 10.9 34.5 10.9C31.7 10.9 30.4 12.6 30.4 15.1C30.4 17.6 31.7 19.3 34.5 19.3Z" fill="#0E0E14"/>
-            <path d="M48.2 6.4H54L57.2 17.4L60.5 6.4H65.8L69.1 17.4L72.3 6.4H78.1L72.8 23.4H66.8L63.2 11.9L59.6 23.4H53.6L48.2 6.4Z" fill="#0E0E14"/>
-            <path d="M89.4 6.4H95.2V23.4H89.4V21.4C88.2 23 86.2 24 83.6 24C78.9 24 76 20.4 76 15.2C76 10 78.9 6.4 83.6 6.4C86.2 6.4 88.2 7.4 89.4 9V6.4ZM85.5 19.3C88.2 19.3 89.5 17.6 89.5 15.2C89.5 12.8 88.2 11.1 85.5 11.1C82.8 11.1 81.5 12.8 81.5 15.2C81.5 17.6 82.8 19.3 85.5 19.3Z" fill="#0E0E14"/>
-            <path d="M99.5 6.4H105.5L109.8 16.3L114.1 6.4H120.1L111.8 23.2L107.5 31.8H101.8L105.8 23.7L99.5 6.4Z" fill="#0E0E14"/>
-          </svg>
+          <svg width="77" height="20" role="img" aria-label="Upway" style="display: block"><use href="#upway-wordmark"/></svg>
 
           <div class="a4-wh-info">
             <div class="a4-wh-title" id="doc-wh-name-p1">UPCENTER BERLIN</div>
@@ -736,14 +773,7 @@
       <div class="a4-page">
         <div class="a4-top-bar"></div>
         <div class="a4-header">
-          <!-- Logo -->
-          <svg class="a4-logo" viewBox="0 0 148 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M14.2 0H20.4V14.8C20.4 19.8 16.6 23.4 10.2 23.4C3.8 23.4 0 19.8 0 14.8V0H6.2V14.6C6.2 17.2 7.8 18.7 10.2 18.7C12.6 18.7 14.2 17.2 14.2 14.6V0Z" fill="#0E0E14"/>
-            <path d="M24.8 6.4H30.6V8.6C31.7 7.1 33.7 6.2 36.2 6.2C41.2 6.2 44.4 10.1 44.4 15.1C44.4 20.1 41.2 24 36.2 24C33.7 24 31.7 23.1 30.6 21.6V30H24.8V6.4ZM34.5 19.3C37.3 19.3 38.6 17.6 38.6 15.1C38.6 12.6 37.3 10.9 34.5 10.9C31.7 10.9 30.4 12.6 30.4 15.1C30.4 17.6 31.7 19.3 34.5 19.3Z" fill="#0E0E14"/>
-            <path d="M48.2 6.4H54L57.2 17.4L60.5 6.4H65.8L69.1 17.4L72.3 6.4H78.1L72.8 23.4H66.8L63.2 11.9L59.6 23.4H53.6L48.2 6.4Z" fill="#0E0E14"/>
-            <path d="M89.4 6.4H95.2V23.4H89.4V21.4C88.2 23 86.2 24 83.6 24C78.9 24 76 20.4 76 15.2C76 10 78.9 6.4 83.6 6.4C86.2 6.4 88.2 7.4 89.4 9V6.4ZM85.5 19.3C88.2 19.3 89.5 17.6 89.5 15.2C89.5 12.8 88.2 11.1 85.5 11.1C82.8 11.1 81.5 12.8 81.5 15.2C81.5 17.6 82.8 19.3 85.5 19.3Z" fill="#0E0E14"/>
-            <path d="M99.5 6.4H105.5L109.8 16.3L114.1 6.4H120.1L111.8 23.2L107.5 31.8H101.8L105.8 23.7L99.5 6.4Z" fill="#0E0E14"/>
-          </svg>
+          <svg width="77" height="20" role="img" aria-label="Upway" style="display: block"><use href="#upway-wordmark"/></svg>
 
           <div class="a4-wh-info">
             <div class="a4-wh-title" id="doc-wh-name-p2">UPCENTER BERLIN</div>
@@ -806,16 +836,10 @@
             <p style="margin: 9px 0 0; max-width: 320px; font-size: 13px; line-height: 1.6; color: var(--ink-600);">Wir möchten uns stetig verbessern. Hat heute alles geklappt? Dann freuen wir uns über Ihre Bewertung.</p>
           </div>
 
+          <!-- Selo oficial do Beleg legado + QR do UpCenter que emitiu. Ambos vêm do
+               servidor (getDocAssets) para o link de avaliação não ter cópia no cliente. -->
           <div style="display: flex; align-items: center; gap: 16px;">
-            <!-- Google Review Badge Graphic -->
-            <div style="width: 124px; height: 72px; border: 1px solid var(--ink-300); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--white);">
-              <div style="font-size: 11px; font-weight: 700; color: var(--ink-900); display: flex; align-items: center; gap: 4px;">
-                <span style="color: #4285F4; font-weight: 800;">G</span><span style="color: #EA4335;">o</span><span style="color: #FBBC05;">o</span><span style="color: #4285F4;">g</span><span style="color: #34A853;">l</span><span style="color: #EA4335;">e</span>
-                <span>Review</span>
-              </div>
-              <div style="color: #FBBC05; font-size: 12px; margin-top: 3px;">★★★★★</div>
-              <div style="font-size: 10px; color: var(--ink-500); margin-top: 2px;">4.9 · Upway</div>
-            </div>
+            <img id="doc-review-badge" alt="Review us on Google" style="width: 120px; height: 72px; object-fit: contain;">
 
             <!-- Dynamic QR Code Container -->
             <div style="width: 88px; height: 88px; border: 1px solid var(--ink-300); border-radius: 8px; padding: 4px; background: var(--white); display: flex; align-items: center; justify-content: center;" id="doc-qr-container">
@@ -837,32 +861,58 @@
   <div class="loading-overlay" id="loading-overlay">
     <div class="loading-card">
       <div class="spinner-ring"></div>
-      <div style="font-size: 15px; font-weight: 700; color: var(--ink-900);" id="loading-msg">Lade Daten ...</div>
-      <div style="font-size: 12px; color: var(--ink-500);">Bitte einen Moment gedulden</div>
+      <!-- Chrome da UI em inglês (como o handoff); alemão só nos campos e no Beleg. -->
+      <div style="font-size: 15px; font-weight: 700; color: var(--ink-900);" id="loading-msg">Loading …</div>
+      <div style="font-size: 12px; color: var(--ink-500);">One moment please</div>
     </div>
   </div>
 
+  <!--
+    Rede de segurança: este bloco vem ANTES da lógica de propósito. Se o script
+    principal tiver erro de sintaxe (ex.: um scriptlet do template não avaliado) ou
+    estourar no boot, a tela ficava simplesmente em branco — sem linha, sem erro, sem
+    pista. Agora o erro aparece na própria página.
+
+    NÃO escrever a sequência de abertura de scriptlet neste arquivo fora de um lugar
+    onde se queira injeção: o HtmlService avalia scriptlets até dentro de comentário,
+    e um scriptlet vazio derruba a página toda.
+  -->
+  <script>
+    window.__bootError = function(msg) {
+      const host = document.getElementById("queue-feedback") || document.body;
+      const card = document.createElement("div");
+      card.className = "error-card";
+      card.style.margin = "24px";
+      card.innerHTML = '<div class="error-title">The portal failed to start</div>';
+      const p = document.createElement("p");
+      p.className = "error-body";
+      p.textContent = msg;
+      card.appendChild(p);
+      host.style.display = "block";
+      host.appendChild(card);
+      const ov = document.getElementById("loading-overlay");
+      if (ov) ov.classList.remove("active");
+    };
+    window.addEventListener("error", function(e) {
+      window.__bootError((e.message || "unknown error") + (e.filename ? " — " + e.filename + ":" + e.lineno : ""));
+    });
+  </script>
+
   <!-- SCRIPT LOGIC -->
   <script>
-    // --- MASTER DATA & SPEC CONSTANTS ---
+    // --- MASTER DATA ---
+    // Só o que a tela precisa mostrar. O link de avaliação de cada UpCenter (o dado que
+    // não pode divergir) vive só no Code.gs e chega por getDocAssets() — aqui não há
+    // cópia dele para envelhecer.
     const WAREHOUSES = [
-      { name: "Berlin", city: "Alexander-Meißner-Straße 77D · 12526 Berlin", reviewUrl: "https://g.page/r/upway-berlin/review" },
-      { name: "Düsseldorf", city: "Höherweg 271 · 40231 Düsseldorf", reviewUrl: "https://g.page/r/upway-dusseldorf/review" },
-      { name: "Stuttgart", city: "Hauptstätter Straße 149 · 70178 Stuttgart", reviewUrl: "https://g.page/r/upway-stuttgart/review" },
-      { name: "Amsterdam", city: "Contactweg 47 · 1014 AN Amsterdam", reviewUrl: "https://g.page/r/upway-amsterdam/review" },
-      { name: "Antwerp", city: "Noorderlaan 133 · 2030 Antwerpen", reviewUrl: "https://g.page/r/upway-antwerp/review" },
-      { name: "Gennevilliers", city: "12 Rue des Chardons · 92230 Gennevilliers", reviewUrl: "https://g.page/r/upway-gennevilliers/review" },
-      { name: "Los Angeles", city: "1933 S Broadway · Los Angeles, CA 90007", reviewUrl: "https://g.page/r/upway-la/review" },
-      { name: "New York", city: "37-24 24th St · Long Island City, NY 11101", reviewUrl: "https://g.page/r/upway-ny/review" }
-    ];
-
-    const MOCK_APPTS = [
-      { time: "09:00", bikeId: "RK2EP9", brand: "Stromer", model: "ST3", year: "2022", mileage: "1240", customer: "Lena Hoffmann", quote: "€ 1.890", status: "filed", email: "lena@example.com" },
-      { time: "09:45", bikeId: "RK2FP1", brand: "Riese & Müller", model: "Charger3 GT", year: "2021", mileage: "3480", customer: "Tobias Wagner", quote: "€ 2.240", status: "pending", email: "tobias@example.com" },
-      { time: "10:30", bikeId: "RK2GU8", brand: "Cube", model: "Reaction Hybrid Pro", year: "2023", mileage: "620", customer: "Miriam Sanders", quote: "€ 1.150", status: "pending", email: "miriam@example.com" },
-      { time: "11:15", bikeId: "RK2JP9", brand: "VanMoof", model: "S3", year: "2020", mileage: "5910", customer: "Jonas Krüger", quote: "€ 740", status: "pending", email: "jonas@example.com" },
-      { time: "13:00", bikeId: "RK2KU4", brand: "Gazelle", model: "Ultimate C380", year: "2022", mileage: "2130", customer: "Aylin Demir", quote: "€ 1.630", status: "filed", email: "aylin@example.com" },
-      { time: "14:30", bikeId: "RK2LM2", brand: "Specialized", model: "Turbo Vado 4.0", year: "2023", mileage: "890", customer: "Paul Neumann", quote: "€ 2.010", status: "pending", email: "paul@example.com" }
+      { name: "Berlin",        city: "Alexander-Meißner-Straße 77D · 12526 Berlin" },
+      { name: "Düsseldorf",    city: "Höherweg 271 · 40231 Düsseldorf" },
+      { name: "Stuttgart",     city: "Hauptstätter Straße 149 · 70178 Stuttgart" },
+      { name: "Amsterdam",     city: "Contactweg 47 · 1014 AN Amsterdam" },
+      { name: "Antwerp",       city: "Noorderlaan 133 · 2030 Antwerpen" },
+      { name: "Gennevilliers", city: "12 Rue des Chardons · 92230 Gennevilliers" },
+      { name: "Los Angeles",   city: "1933 S Broadway · Los Angeles, CA 90007" },
+      { name: "New York",      city: "37-24 24th St · Long Island City, NY 11101" }
     ];
 
     const ACC_ITEMS = [
@@ -882,13 +932,32 @@
       appointments: [],
       selectedIndex: -1,
       form: { bikeId: "", seller: "", brand: "", model: "", mileage: "", frame: "", year: "", battery: "", notes: "", datum: "", uhrzeit: "" },
-      acc: { akku: true, lade: true, schl: false, disp: false },
+      // Nada pré-marcado. O Beleg declara o que o cliente entregou de fato: se Akku e
+      // Ladegerät já vêm marcados, um operador com pressa assina um documento afirmando
+      // ter recebido peça que não recebeu. O handoff sugeria pré-marcar os dois; aqui
+      // vale a segurança do documento.
+      acc: { akku: false, lade: false, schl: false, disp: false },
       filed: {},
       bookedName: "",
-      loading: false
+      loading: false,
+      error: null,
+      summary: null,
+      serverTotal: 0,
+      savedBikeId: null
     };
 
     // --- UTILITIES ---
+    // Nome de cliente e modelo vêm do Metabase e são interpolados em innerHTML:
+    // aspas e sinais precisam sair escapados ou a linha inteira quebra.
+    function escapeHtmlText(str) {
+      if (str === null || str === undefined) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
     function pad(n) { return String(n).padStart(2, "0"); }
     
     function getNowGerman() {
@@ -907,7 +976,22 @@
     }
 
     function getWhRecord(whName) {
-      return WAREHOUSES.find(w => w.name.toLowerCase() === (whName || "").toLowerCase()) || WAREHOUSES[0];
+      const target = normKey(whName);
+      return WAREHOUSES.find(w => normKey(w.name) === target) || WAREHOUSES[0];
+    }
+
+    /** Previsão do nome do arquivo, na mesma regra do belegFileName do Code.gs. */
+    function belegFileName() {
+      const id = (state.form.bikeId || "BELEG").trim().toUpperCase();
+      const brand = (state.form.brand || "").replace(/[\/\\:*?"<>|]/g, " ").replace(/\s+/g, " ").trim();
+      return (brand ? `${id} ${brand}` : id) + ".pdf";
+    }
+
+    function setPeriod(period) {
+      state.period = period;
+      document.querySelectorAll(".segment-btn").forEach(s =>
+        s.classList.toggle("active", s.getAttribute("data-period") === period));
+      loadScheduleData();
     }
 
     // --- INITIALIZATION ---
@@ -947,15 +1031,25 @@
         renderQueueRows();
       });
 
-      // Period segments
-      const segments = document.querySelectorAll(".segment-btn");
-      segments.forEach(btn => {
-        btn.addEventListener("click", function() {
-          segments.forEach(s => s.classList.remove("active"));
-          this.classList.add("active");
-          state.period = this.getAttribute("data-period");
-          loadScheduleData();
-        });
+      // Period segments — o controle e os atalhos do estado vazio passam pelo mesmo setPeriod
+      document.querySelectorAll(".segment-btn").forEach(btn => {
+        btn.addEventListener("click", () => setPeriod(btn.getAttribute("data-period")));
+      });
+
+      // Delegação: linhas e itens do dropdown são re-renderizados a cada busca/filtro,
+      // então o listener vive no contêiner (e o markup não carrega handlers inline com
+      // dados interpolados).
+      document.getElementById("table-rows-container").addEventListener("click", function(e) {
+        const btn = e.target.closest("[data-open-bike]");
+        if (btn) { openCheckinForm(btn.getAttribute("data-open-bike")); return; }
+
+        const jump = e.target.closest("[data-jump-period]");
+        if (jump) setPeriod(jump.getAttribute("data-jump-period"));
+      });
+
+      document.getElementById("wh-dropdown-menu").addEventListener("click", function(e) {
+        const item = e.target.closest("[data-wh-name]");
+        if (item) selectWarehouse(item.getAttribute("data-wh-name"));
       });
 
       // Navigation links
@@ -964,7 +1058,7 @@
       document.getElementById("btn-doc-edit").addEventListener("click", () => switchScreen("form"));
 
       // Print button
-      document.getElementById("btn-doc-print").addEventListener("click", () => window.print());
+      document.getElementById("btn-doc-print").addEventListener("click", handlePrintAndSave);
 
       // Save to Drive & Close button
       document.getElementById("btn-doc-save").addEventListener("click", handleSaveToDriveAndClose);
@@ -1003,9 +1097,19 @@
       if (!el) return;
       el.addEventListener("input", function(e) {
         let val = e.target.value;
-        if (uppercase) val = val.toUpperCase();
+        if (uppercase) {
+          val = val.toUpperCase();
+          // A Rahmennummer não tem text-transform no CSS (o placeholder gritaria), então
+          // o valor precisa subir para maiúscula de fato — senão o operador digita
+          // minúsculo, vê minúsculo, e só o Beleg sai em maiúscula.
+          if (val !== e.target.value) {
+            const from = e.target.selectionStart, to = e.target.selectionEnd;
+            e.target.value = val;
+            try { e.target.setSelectionRange(from, to); } catch (err) { /* input sem seleção */ }
+          }
+        }
         state.form[key] = val;
-        
+
         if (key === "seller") {
           const hint = document.getElementById("seller-changed-hint");
           if (hint) hint.style.display = (val !== state.bookedName && state.bookedName) ? "flex" : "none";
@@ -1039,77 +1143,77 @@
 
     // --- DATA LOADING ---
     function loadScheduleData() {
-      showLoading("Lade Terminliste ...");
-      
-      if (typeof google !== "undefined" && google.script && google.script.run) {
-        google.script.run
-          .withSuccessHandler(onDataLoaded)
-          .withFailureHandler(onDataError)
-          .getMetabaseData({
-            warehouse: state.warehouse.toLowerCase(),
-            dateFilter: state.period
-          });
-      } else {
-        // Fallback for standalone preview
-        setTimeout(() => {
-          onDataLoaded({
-            success: true,
-            rows: MOCK_APPTS.map((r, i) => ({
-              rowIndex: i,
-              bikeId: r.bikeId,
-              bikeName: r.brand + " " + r.model,
-              brand: r.brand,
-              model: r.model,
-              year: r.year,
-              customerName: r.customer,
-              quote: r.quote,
-              mileage: r.mileage,
-              isProcessed: state.filed[r.bikeId] || r.status === "filed"
-            }))
-          });
-        }, 300);
+      if (typeof google === "undefined" || !google.script || !google.script.run) {
+        state.appointments = [];
+        state.error = "This portal only runs inside the spreadsheet. Open it from the 🏷️ Upway Drop-off menu.";
+        renderQueueScreen();
+        return;
+      }
+
+      showLoading("Loading schedule …");
+      google.script.run
+        .withSuccessHandler(onDataLoaded)
+        .withFailureHandler(onDataError)
+        .getMetabaseData({
+          warehouse: state.warehouse.toLowerCase(),
+          dateFilter: state.period
+        });
+    }
+
+    // google.script.run engole exceções do handler de sucesso: qualquer erro aqui deixava
+    // a tela em branco, sem linha e sem mensagem. Agora o erro vira estado de erro.
+    function onDataLoaded(res) {
+      try {
+        applyScheduleData(res);
+      } catch (err) {
+        hideLoading();
+        state.appointments = [];
+        state.error = "Failed to render the schedule: " + ((err && (err.message || err)) || "unknown error") +
+          " · server sent " + (res && res.rows ? res.rows.length + " row(s)" : "no rows");
+        renderQueueScreen();
       }
     }
 
-    function onDataLoaded(res) {
+    function applyScheduleData(res) {
       hideLoading();
-      if (res && res.rows) {
-        state.appointments = res.rows.map(r => {
-          const isFiled = state.filed[r.bikeId] || r.isProcessed;
-          if (isFiled) state.filed[r.bikeId] = true;
-          return {
-            bikeId: r.bikeId || "",
-            brand: r.brand || "",
-            model: r.model || "",
-            bikeName: r.bikeName || (r.brand + " " + r.model).trim(),
-            year: r.year || "",
-            mileage: r.mileage || "",
-            customer: r.customerName || "Kunde",
-            quote: r.quote || "€ --",
-            filed: isFiled
-          };
-        });
-      } else {
+
+      // Um agendamento inventado numa mesa de check-in gera um Beleg legal com dados
+      // de mentira. Se o gateway falhou, a fila fica vazia e o erro aparece — nunca
+      // um dataset de exemplo passando por dado real.
+      if (!res || res.error) {
         state.appointments = [];
+        state.error = (res && res.error) || "The gateway returned an empty response.";
+        renderQueueScreen();
+        return;
       }
+
+      state.error = null;
+      state.summary = res.summary || null;
+      state.serverTotal = typeof res.total === "number" ? res.total : (res.rows || []).length;
+      state.appointments = (res.rows || []).map(r => {
+        const isFiled = !!(state.filed[r.bikeId] || r.isProcessed);
+        if (isFiled) state.filed[r.bikeId] = true;
+        return {
+          bikeId: r.bikeId || "",
+          brand: r.brand || "",
+          model: r.model || "",
+          bikeName: r.bikeName || (r.brand + " " + r.model).trim(),
+          year: r.year || "",
+          mileage: r.mileage || "",
+          customer: r.customerName || "—",
+          quote: r.quote || "€ --",
+          saved: r.saved || null,
+          filed: isFiled
+        };
+      });
+
       renderQueueScreen();
     }
 
     function onDataError(err) {
       hideLoading();
-      console.warn("Metabase fetch fallback:", err);
-      // Fallback to mock data
-      state.appointments = MOCK_APPTS.map(r => ({
-        bikeId: r.bikeId,
-        brand: r.brand,
-        model: r.model,
-        bikeName: r.brand + " " + r.model,
-        year: r.year,
-        mileage: r.mileage,
-        customer: r.customer,
-        quote: r.quote,
-        filed: !!state.filed[r.bikeId] || r.status === "filed"
-      }));
+      state.appointments = [];
+      state.error = "Could not reach the script: " + ((err && (err.message || err)) || "unknown error");
       renderQueueScreen();
     }
 
@@ -1127,10 +1231,10 @@
         dropdown.innerHTML = WAREHOUSES.map(w => {
           const isActive = w.name.toLowerCase() === state.warehouse.toLowerCase();
           return `
-            <div class="wh-item" onclick="selectWarehouse('${w.name}')">
+            <div class="wh-item" data-wh-name="${escapeHtmlText(w.name)}">
               <span style="flex: 1;">
-                <span style="display: block; font-size: 14.5px; font-weight: 500; color: ${isActive ? 'var(--blue-600)' : 'var(--ink-900)'};">${w.name}</span>
-                <span style="display: block; margin-top: 2px; font-size: 12.5px; color: var(--ink-500);">${w.city}</span>
+                <span style="display: block; font-size: 14.5px; font-weight: 500; color: ${isActive ? 'var(--blue-600)' : 'var(--ink-900)'};">${escapeHtmlText(w.name)}</span>
+                <span style="display: block; margin-top: 2px; font-size: 12.5px; color: var(--ink-500);">${escapeHtmlText(w.city)}</span>
               </span>
               ${isActive ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue-500)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>` : ''}
             </div>
@@ -1154,15 +1258,32 @@
       }
     }
 
+    const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+    function shortDate(d) { return d.getDate() + " " + MONTH_NAMES[d.getMonth()]; }
+
     function renderQueueScreen() {
       const wh = getWhRecord(state.warehouse);
       document.getElementById("queue-wh-address").textContent = wh.city;
 
-      // Date Header
-      const d = new Date();
-      const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-      const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      document.getElementById("queue-date-title").textContent = days[d.getDay()] + ", " + d.getDate() + " " + months[d.getMonth()];
+      // O cabeçalho acompanha o período selecionado: mostrar "Today's schedule" sobre
+      // dez dias de agendamentos fazia o operador ler a fila errada.
+      const today = new Date();
+      const shifted = new Date(today.getTime() + (state.period === "next10days" ? 10 : -10) * 86400000);
+      let eyebrow = "Today's schedule";
+      let title = DAY_NAMES[today.getDay()] + ", " + shortDate(today);
+
+      if (state.period === "next10days") {
+        eyebrow = "Next 10 days";
+        title = shortDate(today) + " – " + shortDate(shifted);
+      } else if (state.period === "past10days") {
+        eyebrow = "Past 10 days";
+        title = shortDate(shifted) + " – " + shortDate(today);
+      }
+
+      document.getElementById("queue-eyebrow").textContent = eyebrow;
+      document.getElementById("queue-date-title").textContent = title;
 
       // Stats
       const total = state.appointments.length;
@@ -1173,7 +1294,30 @@
       document.getElementById("cnt-pending").textContent = pendingCnt;
       document.getElementById("cnt-filed").textContent = filedCnt;
 
+      renderQueueFeedback();
       renderQueueRows();
+    }
+
+    function renderQueueFeedback() {
+      const tableCard = document.querySelector("#screen-queue .table-card");
+      const box = document.getElementById("queue-feedback");
+
+      if (!state.error) {
+        tableCard.style.display = "";
+        box.style.display = "none";
+        box.innerHTML = "";
+        return;
+      }
+
+      tableCard.style.display = "none";
+      box.style.display = "block";
+      box.innerHTML =
+        '<div class="error-card">' +
+          '<div class="error-title">No schedule loaded</div>' +
+          '<p class="error-body">' + escapeHtmlText(state.error) + '</p>' +
+          '<button class="btn btn-primary" id="btn-retry-load" style="margin-top: 18px;">Try again</button>' +
+        '</div>';
+      document.getElementById("btn-retry-load").addEventListener("click", loadScheduleData);
     }
 
     function renderQueueRows() {
@@ -1187,45 +1331,52 @@
       });
 
       if (filtered.length === 0) {
-        container.innerHTML = `<div style="padding: 32px; text-align: center; color: var(--ink-500); font-size: 14px;">Keine Termine gefunden</div>`;
+        container.innerHTML = renderEmptyState();
         return;
       }
 
-      container.innerHTML = filtered.map((r, idx) => {
+      // A ação carrega pelo Bike ID, não pelo índice da lista filtrada: com a busca
+      // ativa, o índice filtrado apontava para outro agendamento e o Beleg saía com os
+      // dados do cliente errado.
+      container.innerHTML = filtered.map(r => {
         const isFiled = state.filed[r.bikeId] || r.filed;
         const mileageFormatted = r.mileage ? formatNumberDE(r.mileage) + " km" : "—";
-        const subLine = (r.year ? r.year + " · " : "") + mileageFormatted;
+        const subLine = escapeHtmlText((r.year ? r.year + " · " : "") + mileageFormatted);
+        const bikeId = escapeHtmlText(r.bikeId);
+        const bikeName = escapeHtmlText(r.bikeName);
+        const customer = escapeHtmlText(r.customer);
+        const quote = escapeHtmlText(r.quote);
 
         if (isFiled) {
           return `
             <div class="table-grid table-row filed-row">
-              <div><span class="bike-chip filed">${r.bikeId}</span></div>
+              <div><span class="bike-chip filed">${bikeId}</span></div>
               <div>
-                <div style="font-size: 15px; font-weight: 500; color: var(--ink-500);">${r.bikeName}</div>
+                <div style="font-size: 15px; font-weight: 500; color: var(--ink-500);">${bikeName}</div>
                 <div style="margin-top: 2px; font-size: 12.5px; color: var(--ink-400);">${subLine}</div>
               </div>
-              <div style="font-size: 14.5px; color: var(--ink-500);">${r.customer}</div>
-              <div style="font-size: 14.5px; color: var(--ink-500);">${r.quote}</div>
+              <div style="font-size: 14.5px; color: var(--ink-500);">${customer}</div>
+              <div style="font-size: 14.5px; color: var(--ink-500);">${quote}</div>
               <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px;">
                 <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-400);">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg> Filed
                 </span>
-                <button class="btn btn-ghost btn-sm" onclick="openCheckinForm(${idx})">Reopen</button>
+                <button class="btn btn-ghost btn-sm" data-open-bike="${bikeId}">Reopen</button>
               </div>
             </div>
           `;
         } else {
           return `
             <div class="table-grid table-row">
-              <div><span class="bike-chip">${r.bikeId}</span></div>
+              <div><span class="bike-chip">${bikeId}</span></div>
               <div>
-                <div style="font-size: 15px; font-weight: 500;">${r.bikeName}</div>
+                <div style="font-size: 15px; font-weight: 500;">${bikeName}</div>
                 <div style="margin-top: 2px; font-size: 12.5px; color: var(--ink-500);">${subLine}</div>
               </div>
-              <div style="font-size: 14.5px; color: var(--ink-700);">${r.customer}</div>
-              <div style="font-size: 14.5px; font-weight: 500;">${r.quote}</div>
+              <div style="font-size: 14.5px; color: var(--ink-700);">${customer}</div>
+              <div style="font-size: 14.5px; font-weight: 500;">${quote}</div>
               <div style="display: flex; justify-content: flex-end;">
-                <button class="btn btn-primary btn-sm" onclick="openCheckinForm(${idx})">Check in</button>
+                <button class="btn btn-primary btn-sm" data-open-bike="${bikeId}">Check in</button>
               </div>
             </div>
           `;
@@ -1233,29 +1384,101 @@
       }).join("");
     }
 
-    function openCheckinForm(index) {
+    /**
+     * Fila vazia não pode ser um beco sem saída: uma fila vazia por filtro é
+     * indistinguível de uma integração quebrada. O servidor manda o resumo do que
+     * existe, então aqui a tela diz onde os drop-offs estão.
+     */
+    function renderEmptyState() {
+      const wrap = (inner) => `<div style="padding: 34px 24px; text-align: center;">${inner}</div>`;
+      const line1 = `<div style="font-size: 14.5px; font-weight: 500; color: var(--ink-700);">`;
+
+      if (state.query) {
+        return wrap(line1 + `No appointment matches “${escapeHtmlText(state.query)}”</div>`);
+      }
+
+      const periodLabel = { today: "today", next10days: "in the next 10 days", past10days: "in the past 10 days" }[state.period] || "for this period";
+      const head = line1 + `No drop-offs for ${escapeHtmlText(state.warehouse)} ${periodLabel}</div>`;
+
+      const s = state.summary;
+      if (!s) return wrap(head);
+
+      // Onde mais existe algo, em ordem de utilidade para o operador
+      const hints = [];
+      const sel = s.selectedWarehouse || {};
+      const elsewhere = [
+        state.period !== "next10days" ? [sel.next10days, "in the next 10 days", "next10days"] : null,
+        state.period !== "past10days" ? [sel.past10days, "in the past 10 days", "past10days"] : null,
+        state.period !== "today" ? [sel.today, "today", "today"] : null
+      ].filter(x => x && x[0] > 0);
+
+      if (elsewhere.length) {
+        hints.push(`<div style="margin-top: 10px; font-size: 13.5px; color: var(--ink-500);">Same warehouse: ` +
+          elsewhere.map(([n, label, period]) =>
+            `<button class="btn btn-ghost btn-sm" data-jump-period="${period}">${n} ${label}</button>`
+          ).join(" ") + `</div>`);
+      }
+
+      const others = Object.keys(s.byWarehouse || {})
+        .filter(k => !matchesWhKey(k, state.warehouse) && s.byWarehouse[k] > 0)
+        .sort((a, b) => s.byWarehouse[b] - s.byWarehouse[a])
+        .slice(0, 4)
+        .map(k => `${escapeHtmlText(whDisplayName(k))} (${s.byWarehouse[k]})`);
+
+      if (others.length) {
+        hints.push(`<div style="margin-top: 8px; font-size: 12.5px; color: var(--ink-400);">Other warehouses in this feed: ${others.join(" · ")}</div>`);
+      }
+
+      if (!hints.length) {
+        hints.push(`<div style="margin-top: 8px; font-size: 12.5px; color: var(--ink-400);">${s.totalRows} row${s.totalRows === 1 ? "" : "s"} in the feed, none for this warehouse.</div>`);
+      }
+
+      // Linha técnica, só no estado vazio: distingue "o servidor mandou zero" de "o
+      // servidor mandou linhas e a tela perdeu". Sem isso, os dois casos são idênticos
+      // para quem está olhando.
+      hints.push(`<div style="margin-top: 14px; font-size: 11.5px; color: var(--ink-400);">` +
+        `gateway: ${s.totalRows} row${s.totalRows === 1 ? "" : "s"} · matched this filter: ${state.serverTotal}` +
+        ` · rendered: ${state.appointments.length}</div>`);
+
+      return wrap(head + hints.join(""));
+    }
+
+    function normKey(s) { return String(s || "").toLowerCase().replace(/ü/g, "u").replace(/[^a-z0-9]/g, ""); }
+    function matchesWhKey(key, name) { return normKey(key) === normKey(name); }
+    function whDisplayName(key) {
+      const hit = WAREHOUSES.find(w => normKey(w.name) === normKey(key));
+      return hit ? hit.name : key;
+    }
+
+    function openCheckinForm(bikeId) {
+      const index = state.appointments.findIndex(a => a.bikeId === bikeId);
       const appt = state.appointments[index];
       if (!appt) return;
 
       const t = getNowGerman();
       state.selectedIndex = index;
       state.bookedName = appt.customer;
+
+      // Reopen: restaura o que foi arquivado. Sem isso, reabrir um Beleg descartava a
+      // Rahmennummer digitada à mão e voltava aos defaults do booking.
+      const s = appt.saved;
       state.form = {
         bikeId: appt.bikeId,
-        seller: appt.customer,
-        brand: appt.brand,
-        model: appt.model,
-        mileage: appt.mileage,
-        frame: appt.frame || "",
-        year: appt.year || "",
-        battery: appt.battery || "",
-        notes: "",
-        datum: t.datum,
-        uhrzeit: t.uhrzeit
+        seller: s ? (s.seller || appt.customer) : appt.customer,
+        brand: s ? (s.brand || appt.brand) : appt.brand,
+        model: s ? (s.model || appt.model) : appt.model,
+        mileage: s ? (s.mileage || appt.mileage) : appt.mileage,
+        frame: s ? (s.frame || "") : "",
+        year: s ? (s.year || appt.year || "") : (appt.year || ""),
+        battery: s ? (s.battery || "") : "",
+        notes: s ? (s.notes || "") : "",
+        datum: s && s.datum ? s.datum : t.datum,
+        uhrzeit: s && s.uhrzeit ? s.uhrzeit : t.uhrzeit
       };
 
-      // Default accessories
-      state.acc = { akku: true, lade: true, schl: false, disp: false };
+      state.acc = s && s.acc
+        ? { akku: !!s.acc.akku, lade: !!s.acc.lade, schl: !!s.acc.schl, disp: !!s.acc.disp }
+        : { akku: false, lade: false, schl: false, disp: false };
 
       switchScreen("form");
     }
@@ -1309,8 +1532,11 @@
       document.getElementById("sum-bike-name").textContent = bikeName;
       document.getElementById("sum-quote-val").textContent = appt.quote || "€ --";
 
+      // Caminho real usado por processDropoffDocument: {ano} › {MM-DD}. Antes o rótulo
+      // prometia "› {armazém}", uma pasta que o servidor nunca cria.
       const now = new Date();
-      document.getElementById("sum-drive-folder").textContent = `Saved to Drive · ${now.getFullYear()} › ${state.warehouse}`;
+      const dayFolder = pad(now.getMonth() + 1) + "-" + pad(now.getDate());
+      document.getElementById("sum-drive-folder").textContent = `Saved to Drive · ${now.getFullYear()} › ${dayFolder}`;
 
       const isBerlin = state.warehouse.toLowerCase() === "berlin";
       const onCount = ACC_ITEMS.filter(x => state.acc[x.key]).length;
@@ -1340,7 +1566,7 @@
       bodyContainer.innerHTML = list.map(r => `
         <div class="summary-kv-row">
           <span class="summary-k">${r.k}</span>
-          <span class="summary-v" style="color: ${r.color};">${r.v}</span>
+          <span class="summary-v" style="color: ${r.color};">${escapeHtmlText(r.v)}</span>
         </div>
       `).join("");
     }
@@ -1355,12 +1581,22 @@
     }
 
     function renderDocScreen() {
+      const stale = document.getElementById("doc-error-box");
+      if (stale) stale.remove();
+
+      // Beleg diferente do que foi gravado: o botão volta a oferecer a gravação.
+      if (state.savedBikeId !== state.form.bikeId) {
+        state.savedBikeId = null;
+        const closeBtn = document.getElementById("btn-doc-save");
+        if (closeBtn) closeBtn.textContent = "Save to Drive & close";
+      }
+
       const wh = getWhRecord(state.warehouse);
       const whUpper = state.warehouse.toUpperCase();
       const isBerlin = state.warehouse.toLowerCase() === "berlin";
 
       // Pill
-      document.getElementById("doc-filename-pill").textContent = `Beleg ${state.form.bikeId || "N/A"}.pdf`;
+      document.getElementById("doc-filename-pill").textContent = belegFileName();
 
       // Header Page 1 & 2
       document.getElementById("doc-wh-name-p1").textContent = `UPCENTER ${whUpper}`;
@@ -1387,18 +1623,22 @@
       document.querySelectorAll(".doc-non-berlin-cell").forEach(el => el.style.display = isBerlin ? "none" : "block");
 
       // Section 03 Checkboxes
+      // Mesmo markup do PDF (renderCheckbox no Code.gs) de propósito: um vai para a
+      // impressora e o outro para o Drive, e os dois têm que sair iguais.
+      //
+      // O ✓ era um <svg> dentro de um container flex, sem base de flex — SVG assim
+      // encolhe para zero e a marca desaparecia. Agora é texto, com `flex: 0 0 15px`
+      // na caixa. O estado também vem da cor de fundo, então mesmo que o glifo falhe
+      // sobra azul cheio vs. contorno vazio.
       const accContainer = document.getElementById("doc-acc-checkboxes");
       accContainer.innerHTML = ACC_ITEMS.map(item => {
-        const isChecked = !!state.acc[item.key];
+        const box = state.acc[item.key]
+          ? `<span style="flex: 0 0 15px; display: block; width: 15px; height: 15px; border-radius: 4px; box-sizing: border-box; background: var(--blue-500); border: 1px solid var(--blue-500); color: #fff; font-size: 11px; line-height: 13px; font-weight: 700; text-align: center;">&#10003;</span>`
+          : `<span style="flex: 0 0 15px; display: block; width: 15px; height: 15px; border-radius: 4px; box-sizing: border-box; background: #fff; border: 1px solid var(--ink-400);"></span>`;
+
         return `
           <div style="display: flex; align-items: center; gap: 8px;">
-            ${isChecked ? `
-              <span style="width: 15px; height: 15px; border-radius: 4px; background: var(--blue-500); display: flex; align-items: center; justify-content: center;">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
-              </span>
-            ` : `
-              <span style="width: 15px; height: 15px; border-radius: 4px; border: 1px solid var(--ink-400); box-sizing: border-box;"></span>
-            `}
+            ${box}
             <span style="font-size: 13.5px; color: var(--ink-900);">${item.de}</span>
           </div>
         `;
@@ -1410,17 +1650,48 @@
       document.getElementById("doc-datum").textContent = state.form.datum || getNowGerman().datum;
       document.getElementById("doc-uhrzeit").textContent = state.form.uhrzeit || getNowGerman().uhrzeit;
 
-      // QR Code
-      const qrContainer = document.getElementById("doc-qr-container");
-      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(wh.reviewUrl)}`;
-      qrContainer.innerHTML = `<img src="${qrApiUrl}" alt="Review QR" style="width: 100%; height: 100%; object-fit: contain;">`;
+      renderDocAssets();
     }
 
-    // --- SAVE TO DRIVE & CLOSE ---
-    function handleSaveToDriveAndClose() {
-      showLoading("Speichere PDF in Google Drive ...");
+    // Selo + QR vêm do servidor: o link de avaliação de cada UpCenter fica lá, e o QR
+    // já sai do cache do servidor. Guardado por armazém para não repetir a chamada.
+    const docAssetCache = {};
 
-      const payload = {
+    function renderDocAssets() {
+      const wh = state.warehouse;
+      const apply = (assets) => {
+        if (!assets) return;
+        docAssetCache[wh] = assets;
+        const badge = document.getElementById("doc-review-badge");
+        if (badge && assets.badge) badge.src = assets.badge;
+
+        const qrContainer = document.getElementById("doc-qr-container");
+        if (qrContainer && assets.qr) {
+          const img = document.createElement("img");
+          img.src = assets.qr;
+          img.alt = "QR Google-Bewertung";
+          img.style.cssText = "width: 100%; height: 100%; object-fit: contain;";
+          qrContainer.innerHTML = "";
+          qrContainer.appendChild(img);
+        }
+      };
+
+      if (docAssetCache[wh]) { apply(docAssetCache[wh]); return; }
+      if (typeof google === "undefined" || !google.script || !google.script.run) return;
+
+      google.script.run
+        .withSuccessHandler(apply)
+        .withFailureHandler(() => {})
+        .getDocAssets(wh.toLowerCase());
+    }
+
+    // --- SAVE / PRINT ---
+    function serverReady() {
+      return typeof google !== "undefined" && google.script && google.script.run;
+    }
+
+    function buildDocPayload() {
+      return {
         bikeId: state.form.bikeId,
         seller: state.form.seller,
         brand: state.form.brand,
@@ -1439,21 +1710,84 @@
         uhrzeit: state.form.uhrzeit,
         warehouse: state.warehouse.toLowerCase()
       };
+    }
 
-      if (typeof google !== "undefined" && google.script && google.script.run) {
+    function handleSaveToDriveAndClose() {
+      // Já gravado por um "Print & save": não regravar, só sair.
+      if (state.savedBikeId && state.savedBikeId === state.form.bikeId) {
+        switchScreen("queue");
+        loadScheduleData();
+        return;
+      }
+      if (!serverReady()) {
+        showDocError("Not running inside the spreadsheet — nothing was saved.");
+        return;
+      }
+
+      showLoading("Saving PDF to Google Drive …");
+      google.script.run
+        .withSuccessHandler(onSaveSuccess)
+        .withFailureHandler(onSaveError)
+        .processDropoffDocument(buildDocPayload());
+    }
+
+    /**
+     * Ação principal do balcão: manda a folha para a impressora e grava no Drive.
+     *
+     * Imprime o documento desta janela com window.print(), sem aba nova e sem popup.
+     * Já tentei carregar o PDF do servidor num iframe blob: para imprimir o arquivo
+     * arquivado — não dá. Dentro do sandbox do Apps Script o iframe blob: recebe origem
+     * opaca, `frame.contentWindow.print()` levanta SecurityError, e o fallback de abrir
+     * aba caía no bloqueador de popup. O CSS de @media print reproduz a folha A4.
+     *
+     * A gravação sai em paralelo: o operador não espera o Drive para imprimir.
+     */
+    function handlePrintAndSave() {
+      if (serverReady() && !(state.savedBikeId && state.savedBikeId === state.form.bikeId)) {
         google.script.run
-          .withSuccessHandler(onSaveSuccess)
+          .withSuccessHandler(onBackgroundSaved)
           .withFailureHandler(onSaveError)
-          .processDropoffDocument(payload);
-      } else {
-        setTimeout(() => {
-          onSaveSuccess({ success: true, bikeId: state.form.bikeId });
-        }, 600);
+          .processDropoffDocument(buildDocPayload());
+      }
+
+      window.print();
+    }
+
+    function onBackgroundSaved(res) {
+      if (!res || res.error) {
+        showDocError((res && res.error) || "Printed, but the server returned no confirmation.");
+        return;
+      }
+      markSaved(res);
+    }
+
+    /** Marca como arquivado e ajusta o botão secundário: gravar de novo não faz sentido. */
+    function markSaved(res) {
+      if (state.form.bikeId) {
+        state.filed[state.form.bikeId] = true;
+        state.savedBikeId = state.form.bikeId;
+      }
+      const closeBtn = document.getElementById("btn-doc-save");
+      if (closeBtn) closeBtn.textContent = "Close";
+
+      // Nome autoritativo é o que o servidor gravou, não a previsão local.
+      const pill = document.getElementById("doc-filename-pill");
+      if (pill && res && res.folderPath) {
+        pill.textContent = `Saved · ${res.folderPath} › ${res.fileName || belegFileName()}`;
       }
     }
 
     function onSaveSuccess(res) {
       hideLoading();
+
+      // processDropoffDocument devolve { error } no MESMO canal de sucesso. Sem este
+      // teste o portal marcava a linha como arquivada e voltava para a fila sem que
+      // nenhum PDF tivesse sido gravado.
+      if (!res || res.error) {
+        showDocError((res && res.error) || "The server returned no confirmation.");
+        return;
+      }
+
       if (state.form.bikeId) {
         state.filed[state.form.bikeId] = true;
       }
@@ -1463,13 +1797,28 @@
 
     function onSaveError(err) {
       hideLoading();
-      alert("Fehler beim Speichern in Google Drive: " + (err.message || err));
-      switchScreen("queue");
+      showDocError((err && (err.message || err)) || "unknown error");
+    }
+
+    // Erro fica na tela do documento: o operador continua com o Beleg à vista e pode
+    // tentar salvar de novo, em vez de ser jogado para a fila achando que deu certo.
+    function showDocError(msg) {
+      hideLoading();
+      let box = document.getElementById("doc-error-box");
+      if (!box) {
+        box = document.createElement("div");
+        box.id = "doc-error-box";
+        box.className = "no-print";
+        box.style.cssText = "flex: 1 0 100%; max-width: 794px; margin: 0 auto; padding: 14px 18px; background: var(--white); border: 1px solid var(--ink-300); border-radius: 12px; font-size: 13.5px; line-height: 1.5; color: var(--ink-900);";
+        const wrap = document.querySelector(".doc-pages-wrap");
+        wrap.insertBefore(box, wrap.firstChild);
+      }
+      box.textContent = "Not saved to Drive: " + msg;
     }
 
     // --- LOADING OVERLAY ---
     function showLoading(msg) {
-      document.getElementById("loading-msg").textContent = msg || "Lade ...";
+      document.getElementById("loading-msg").textContent = msg || "Loading …";
       document.getElementById("loading-overlay").classList.add("active");
     }
 
