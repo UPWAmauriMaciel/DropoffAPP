@@ -41,6 +41,26 @@ function upwayLogoSvg(heightPx) {
 }
 
 
+/**
+ * Favicon da aba, em ordem de preferência — ver withFavicon() no Portal.gs.
+ *
+ * 1º: o ícone do backoffice, o mesmo que a equipe já vê na aba do backoffice.upway.app.
+ * 2º: o que a loja publica no `<link rel="shortcut icon">` dela, PNG, como reserva caso o
+ *     Apps Script recuse `.ico`.
+ *
+ * Nenhuma cópia local de propósito: quando a marca trocar de ícone, as duas URLs
+ * acompanham sem ninguém lembrar deste arquivo.
+ *
+ * Já foi data URI de um SVG montado a partir do path do wordmark, e o Apps Script recusou
+ * com "The favicon icon image type is not supported" — setFaviconUrl valida o tipo e quer
+ * imagem hospedada, não data URI.
+ */
+var FAVICON_URLS = [
+    'https://backoffice.upway.app/favicon.ico',
+    'https://upway.fr/cdn/shop/files/logo-256_32x32.png?v=1678123878'
+];
+
+
 var WAREHOUSES = [
     "berlin", "dusseldorf", "stuttgart", "amsterdam",
     "antwerp", "gennevilliers", "losangeles", "newyork"
@@ -65,13 +85,18 @@ var WAREHOUSES = [
  */
 var WAREHOUSE_MAP = {
     "berlin": { name: "Berlin", city: "Alexander-Meißner-Straße 77D · 12526 Berlin", gpageId: "CZuAldi1qpuUEBM" },
-    "dusseldorf": { name: "Düsseldorf", city: "Höherweg 271 · 40231 Düsseldorf", gpageId: "" },
-    "stuttgart": { name: "Stuttgart", city: "Hauptstätter Straße 149 · 70178 Stuttgart", gpageId: "" },
-    "amsterdam": { name: "Amsterdam", city: "Contactweg 47 · 1014 AN Amsterdam", gpageId: "" },
-    "antwerp": { name: "Antwerp", city: "Noorderlaan 133 · 2030 Antwerpen", gpageId: "" },
-    "gennevilliers": { name: "Gennevilliers", city: "12 Rue des Chardons · 92230 Gennevilliers", gpageId: "" },
-    "losangeles": { name: "Los Angeles", city: "1933 S Broadway · Los Angeles, CA 90007", gpageId: "" },
-    "newyork": { name: "New York", city: "37-24 24th St · Long Island City, NY 11101", gpageId: "" }
+    "dusseldorf": { name: "Düsseldorf", city: "Reisholzer Bahnstraße 39 · 40599 Düsseldorf", gpageId: "" },
+    // O galpão fica em Illingen, não em Stuttgart. O NOME continua "Stuttgart" porque é
+    // ele que o card do Metabase devolve em dropOffWarehouse e é por ele que a fila casa
+    // (matchesWarehouse) — renomear esvazia a fila deste balcão. Ver o comentário abaixo.
+    "stuttgart": { name: "Stuttgart", city: "Jakob-Friedrich-Wanner-Straße 6 · 75428 Illingen", gpageId: "" },
+    "amsterdam": { name: "Amsterdam", city: "Keienbergweg 20 · 1101 GB Amsterdam", gpageId: "" },
+    // Mesmo caso: o galpão é em Mechelen, o nome continua "Antwerp" pelo casamento.
+    "antwerp": { name: "Antwerp", city: "Kruisbaan 66B · 2800 Mechelen", gpageId: "" },
+    "gennevilliers": { name: "Gennevilliers", city: "5 Rue Olympe de Gouges · 92230 Gennevilliers", gpageId: "" },
+    // Mesmo caso: o galpão é em Redondo Beach.
+    "losangeles": { name: "Los Angeles", city: "2400 Marine Ave · Redondo Beach, CA 90278", gpageId: "" },
+    "newyork": { name: "New York", city: "134 Morgan Ave · Brooklyn, NY 11237", gpageId: "" }
 };
 
 

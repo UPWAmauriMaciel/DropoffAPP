@@ -15,7 +15,7 @@
  */
 function processDropoffDocument(formData) {
     if (!formData || !formData.bikeId) {
-        return { error: 'Dados inválidos ou Bike ID ausente.' };
+        return { error: 'Invalid data or missing Bike ID.' };
     }
 
     const config = getAppConfig();
@@ -481,7 +481,7 @@ function getDriveFolder(folderId) {
     try {
         return DriveApp.getFolderById(folderId);
     } catch (e) {
-        throw new Error(`Não foi possível abrir a pasta do Drive ${folderId}. Verifique CONFIG.SHARED_DRIVE_FOLDER_ID e o acesso da sua conta ao Shared Drive. (${e.message || e})`);
+        throw new Error(`Could not open Drive folder ${folderId}. Check CONFIG.SHARED_DRIVE_FOLDER_ID and your account's access to the Shared Drive. (${e.message || e})`);
     }
 }
 

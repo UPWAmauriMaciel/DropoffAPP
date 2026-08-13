@@ -17,12 +17,17 @@
  */
 function diagnoseGateway() {
     const r = hubRequest();
+    const bytes = String(r.body || '').length;
     const lines = [
         'URL:  ' + CONFIG.HUB_URL,
         'Card: ' + CONFIG.CARD_ID,
         'HTTP: ' + (r.exception ? 'exceção — ' + r.exception : r.code),
         'HTML em vez de JSON: ' + (looksLikeHtml(r.body) ? 'SIM (problema de acesso ao hub)' : 'não'),
-        'Tamanho do corpo: ' + String(r.body || '').length,
+        // Passando de 100 KB o cache do CacheService cabia em UMA chave e o put falhava
+        // calado: toda abertura pagava a query do Metabase. Hoje vai em pedaços, e este
+        // número diz quantos — se der 0 pedaços com corpo grande, o cache está mudo.
+        'Tamanho do corpo: ' + bytes + ' bytes (' + Math.ceil(bytes / CACHE_CHUNK) + ' pedaço(s) de cache)',
+        'Cache do card agora: ' + (cacheGetChunked(CacheService.getScriptCache(), HUB_CACHE_KEY) ? 'QUENTE' : 'frio'),
         '',
         'Primeiros 500 caracteres:',
         String(r.body || '(vazio)').substring(0, 500)
@@ -265,7 +270,7 @@ function runSelfChecks() {
 
     // QR de avaliação: link real quando há gpageId, busca do Maps quando não há.
     // Nunca um `g.page/r/upway-<cidade>/review` inventado.
-    const semId = reviewUrlFor({ name: 'Amsterdam', city: 'Contactweg 47 · 1014 AN Amsterdam', gpageId: '' });
+    const semId = reviewUrlFor({ name: 'Amsterdam', city: 'Keienbergweg 20 · 1101 GB Amsterdam', gpageId: '' });
     assert(semId.indexOf('https://www.google.com/maps/search/?api=1&query=') === 0, 'fallback do review não é uma busca do Maps');
     assert(semId.indexOf('g.page') === -1, 'link g.page inventado voltou');
     assert(reviewUrlFor({ name: 'Berlin', city: 'x', gpageId: 'CZuAldi1qpuUEBM' }) ===
@@ -286,9 +291,47 @@ function runSelfChecks() {
     assert(rowDateIso({ dropOffStartDate: 'lixo' }) === '', 'data inválida deveria virar vazio');
     assert(rowDateIso({}) === '', 'linha sem data deveria virar vazio');
 
+    // Favicon não pode derrubar o portal: setFaviconUrl lança em tipo não suportado, e a
+    // chamada mora dentro do doGet. Já aconteceu em produção com um data URI de SVG.
+    const outRuim = { setFaviconUrl: function () { throw new Error('The favicon icon image type is not supported.'); } };
+    assert(withFavicon(outRuim) === outRuim, 'favicon recusado deveria degradar, não estourar o doGet');
+    const outBom = { setFaviconUrl: function () { return 'APLICADO'; } };
+    assert(withFavicon(outBom) === 'APLICADO', 'favicon aceito deveria ser aplicado');
+    assert(FAVICON_URLS.length >= 1, 'sem nenhuma URL de favicon');
+    assert(FAVICON_URLS.every(u => u.indexOf('https://') === 0), 'favicon só por https');
+    assert(FAVICON_URLS.every(u => !/^data:/.test(u)), 'data URI em favicon é recusado pelo Apps Script');
+
     // Snapshot precisa sobreviver ao round-trip pela planilha.
     const snap = { bikeId: 'RK2EP9', frame: 'WBK123', acc: { akku: true, disp: false } };
     assert(JSON.parse(JSON.stringify(snap)).acc.akku === true, 'snapshot não sobreviveu ao round-trip');
+
+    // Cache em pedaços: era aqui que o cache do card morria calado acima de 100 KB.
+    const store = {};
+    const fake = {
+        get: k => (k in store ? store[k] : null),
+        getAll: ks => { const o = {}; ks.forEach(k => { if (k in store) o[k] = store[k]; }); return o; },
+        putAll: (o) => Object.assign(store, o),
+        remove: k => { delete store[k]; }
+    };
+    const grande = JSON.stringify({ rows: new Array(20000).fill('RK2EP9') });
+    assert(grande.length > CACHE_CHUNK, 'a amostra do teste precisa passar de um pedaço');
+    cachePutChunked(fake, 'k', grande, 60);
+    assert(cacheGetChunked(fake, 'k') === grande, 'valor grande não sobreviveu ao cache em pedaços');
+    assert(cacheGetChunked(fake, 'ausente') === null, 'chave inexistente deveria dar null');
+    // Pedaço faltando = card truncado. Tem que dar null e ir ao hub, nunca meio card.
+    delete store['k:1'];
+    assert(cacheGetChunked(fake, 'k') === null, 'pedaço faltando deveria invalidar o cache inteiro');
+
+    // Resolução de coluna: uma vez para o card, e a primeira linha incompleta não pode
+    // apagar o campo em todas as outras.
+    const keyOf = resolveRowKeys(
+        [{ bikeId: 'A' }, { bikeId: 'B', 'Logistics - logisticsId → dropOffWarehouse': 'berlin' }],
+        ROW_FIELDS
+    );
+    assert(keyOf.bikeId === 'bikeId', 'casamento exato de coluna falhou');
+    assert(keyOf.dropOffWarehouse === 'Logistics - logisticsId → dropOffWarehouse',
+        'coluna ausente na primeira linha some do card inteiro');
+    assert(keyOf.battery === undefined && keyOf.model === '', 'campo sem coluna deveria resolver para vazio');
 
     Logger.log('runSelfChecks: OK');
     return 'OK';

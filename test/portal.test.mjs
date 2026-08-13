@@ -262,8 +262,8 @@ ok($('#doc-error-box') && $('#doc-error-box').textContent.includes('Not saved to
 
 // --- 11. Falha do gateway: erro visivel, zero dados inventados ---
 window.google.script.run.withSuccessHandler = function (h) { window.__h2 = h; return window.google.script.run; };
-window.loadScheduleData();
-window.__h2({ error: 'O Gateway devolveu uma pagina HTML de login em vez de JSON' });
+window.loadScheduleData(true);  // force: sem isto o memo de (armazem, periodo) responde e nao ha round trip
+window.__h2({ error: 'The Gateway returned an HTML login page instead of JSON' });
 ok($('#queue-feedback').style.display === 'block', 'card de erro aparece');
 ok($('#queue-feedback').textContent.includes('login'), 'mensagem real do gateway e mostrada');
 ok(doc.querySelector('#screen-queue .table-card').style.display === 'none', 'tabela escondida no erro');
@@ -273,6 +273,7 @@ ok(!!$('#btn-retry-load'), 'botao Try again presente');
 
 // --- 11b. Fila vazia por FILTRO: nao e beco sem saida, diz onde estao os drop-offs ---
 window.google.script.run.withSuccessHandler = origSuccess; // devolve o stub real
+window.clearScheduleMemo();  // (berlin|today) ja esta memoizado da secao 1 com 3 linhas
 window.__emptyNext = true;
 window.setPeriod('today');
 await wait(250);
@@ -286,6 +287,50 @@ ok(/Düsseldorf \(12\)/.test(empty), 'lista outros armazens com contagem');
 click(doc.querySelector('[data-jump-period="next10days"]'));
 await wait(250);
 ok($('.segment-btn.active').textContent.includes('Next'), 'atalho do estado vazio muda o segmento ativo');
+
+// --- 11c. Memo por (armazem, periodo): trocar de balcao e voltar nao volta ao servidor ---
+// Era aqui que estavam os ~5s da troca de armazem: um round trip inteiro de Apps Script
+// para refiltrar o MESMO card que o servidor ja tem em cache.
+const realGet = window.google.script.run.getMetabaseData;
+let hubCalls = 0;
+window.google.script.run.getMetabaseData = function (p) {
+  hubCalls++;
+  return realGet.call(window.google.script.run, p);
+};
+window.clearScheduleMemo();
+for (const wh of ['Stuttgart', 'Berlin', 'Stuttgart', 'Berlin']) {
+  window.selectWarehouse(wh);
+  await wait(150);
+}
+ok(hubCalls === 2, '4 trocas entre 2 armazens = 2 chamadas ao servidor (veio ' + hubCalls + ')');
+ok(txt('#wh-label') === 'Berlin', 'o memo serve o armazem certo, nao o ultimo carregado');
+
+// --- 11d. Skeleton na carga: nem data fixa, nem "0" com cara de dado real ---
+ok(!html.includes('Monday, 10 August'), 'data fixa removida do markup (era lida como agendamento real durante a carga)');
+window.google.script.run.withSuccessHandler = function (h) { window.__hSk = h; return window.google.script.run; };
+window.clearScheduleMemo();
+window.loadScheduleData(true);
+ok(doc.querySelectorAll('#table-rows-container .skeleton-row').length === 4, 'skeleton com 4 linhas fantasma durante a carga');
+ok(doc.querySelectorAll('#table-rows-container .table-row').length === 0, 'skeleton nao conta como linha de dado');
+ok(txt('#cnt-scheduled') === '—', 'contador neutro na carga: um traco nao e "0 agendamentos"');
+ok(!$('#queue-date-title').querySelector('.sk-bar') && txt('#queue-date-title').length > 3,
+   'data do cabecalho vem do relogio no boot, sem esperar o servidor (veio "' + txt('#queue-date-title') + '")');
+ok(!$('#loading-overlay').classList.contains('active'), 'carga da fila nao bloqueia a tela com overlay');
+window.__hSk({ success: true, total: 0, rows: [], summary: { totalRows: 0, byWarehouse: {}, selectedWarehouse: { today: 0, next10days: 0, past10days: 0, otherDates: 0 } } });
+ok(doc.querySelectorAll('#table-rows-container .skeleton-row').length === 0, 'skeleton sai quando o dado chega');
+ok(txt('#cnt-scheduled') === '0', 'contador volta a ser numero depois da resposta');
+window.google.script.run.withSuccessHandler = origSuccess;
+
+// --- 11e. "Drop-off desk": peso, cor e tamanho casado com a altura do wordmark ---
+ok(txt('.header-title') === 'Drop-off desk', 'frase do cabecalho');
+const hdr = /\.header-title\s*\{([^}]*)\}/.exec(html);
+ok(!!hdr, 'regra .header-title existe');
+ok(/font-weight:\s*700/.test(hdr[1]), 'peso 700');
+ok(/font-size:\s*16px/.test(hdr[1]), 'font-size 16px = caixa-alta da Inter batendo com a do wordmark de 16px');
+ok(/line-height:\s*1\b/.test(hdr[1]), 'line-height 1: sem isso o flex centraliza caixas de altura diferente e o texto desce');
+ok(/color:\s*var\(--blue-500\)/.test(hdr[1]), 'azul da marca pelo token');
+ok(!/#4733FF/i.test(hdr[1]), 'sem hex solto: o token e o mesmo valor que o fill do wordmark');
+ok(/font-family:\s*'Inter'/.test(hdr[1]), 'pilha de fonte declarada na propria regra');
 
 // --- 12. Sem cores fora do design system ---
 ok(!html.includes('#FFFBEB') && !html.includes('#FCD34D') && !html.includes('#92400E'), 'banner ambar removido');

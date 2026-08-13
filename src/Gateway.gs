@@ -57,12 +57,56 @@ function looksLikeHtml(body) {
  * agendamento novo aparecer no minuto seguinte.
  */
 var HUB_CACHE_KEY = 'hub_card_' + CONFIG.CARD_ID;
-var HUB_CACHE_TTL = 60;
+// 420s, e não os 300s do trigger de warmHubCache: com TTL igual ao intervalo o cache
+// vence pouco antes do próximo aquecimento e alguém pega a janela fria.
+var HUB_CACHE_TTL = 420;
+var CACHE_CHUNK = 90000;
+
+
+/**
+ * Grava um valor grande no CacheService em pedaços.
+ *
+ * O teto é 100 KB POR CHAVE e o put acima disso falha CALADO. A versão anterior nem
+ * tentava passando de 100 KB — o que significa que, com o card grande, o cache nunca
+ * ligava e TODA abertura do portal pagava a query inteira no Metabase. Daí os 10s.
+ *
+ * A chave-índice guarda quantos pedaços existem. Se faltar qualquer um (evicção parcial),
+ * a leitura devolve null e vai ao hub — nunca um card truncado passando por completo.
+ */
+function cachePutChunked(cache, key, raw, ttl) {
+    const parts = {};
+    const n = Math.ceil(raw.length / CACHE_CHUNK);
+    for (let i = 0; i < n; i++) {
+        parts[key + ':' + i] = raw.substring(i * CACHE_CHUNK, (i + 1) * CACHE_CHUNK);
+    }
+    parts[key] = String(n);
+    cache.putAll(parts, ttl);
+}
+
+
+/** Remonta o valor de cachePutChunked, ou null se algum pedaço faltar. */
+function cacheGetChunked(cache, key) {
+    const n = parseInt(cache.get(key) || '0', 10);
+    if (!n) return null;
+
+    const keys = [];
+    for (let i = 0; i < n; i++) keys.push(key + ':' + i);
+    const parts = cache.getAll(keys);
+
+    let raw = '';
+    for (let i = 0; i < n; i++) {
+        const part = parts[keys[i]];
+        if (part === undefined || part === null) return null;
+        raw += part;
+    }
+    return raw;
+}
+
 
 function fetchHubData() {
     const cache = CacheService.getScriptCache();
 
-    const cached = cache.get(HUB_CACHE_KEY);
+    const cached = cacheGetChunked(cache, HUB_CACHE_KEY);
     if (cached) {
         try {
             return { data: JSON.parse(cached), cached: true };
@@ -72,13 +116,51 @@ function fetchHubData() {
     }
 
     const fresh = fetchHubDataUncached();
-    if (!fresh.error) {
-        // Limite do CacheService é 100 KB por valor. Acima disso o put falha calado,
-        // então nem tenta — degrada para "sem cache", não para "cache quebrado".
-        const raw = JSON.stringify(fresh.data);
-        if (raw.length < 100000) cache.put(HUB_CACHE_KEY, raw, HUB_CACHE_TTL);
-    }
+    if (!fresh.error) cachePutChunked(cache, HUB_CACHE_KEY, JSON.stringify(fresh.data), HUB_CACHE_TTL);
     return fresh;
+}
+
+
+/**
+ * Enche o cache do card ANTES de alguém abrir o portal. Alvo de um trigger de 5 min.
+ *
+ * A query do Metabase é o trecho caro da abertura, e quem paga por ela hoje é o operador
+ * com o cliente na frente. Com o aquecimento em background o cache nunca está frio no
+ * horário do balcão. Instalar uma vez com installWarmTrigger().
+ */
+function warmHubCache() {
+    const fresh = fetchHubDataUncached();
+    if (fresh.error) {
+        console.warn('warmHubCache: ' + fresh.error);
+        return { error: fresh.error };
+    }
+    const raw = JSON.stringify(fresh.data);
+    cachePutChunked(CacheService.getScriptCache(), HUB_CACHE_KEY, raw, HUB_CACHE_TTL);
+    return { ok: true, bytes: raw.length };
+}
+
+
+/**
+ * Remove os triggers de um handler e devolve o builder para o novo.
+ *
+ * Sem a remoção, rodar o instalador duas vezes deixa DOIS triggers do mesmo handler —
+ * dobra de execuções, e no caso do aquecimento dobra de query no Metabase.
+ */
+function replaceTrigger(handler) {
+    ScriptApp.getProjectTriggers().forEach(t => {
+        if (t.getHandlerFunction() === handler) ScriptApp.deleteTrigger(t);
+    });
+    return ScriptApp.newTrigger(handler).timeBased();
+}
+
+
+/**
+ * Instala o trigger de aquecimento. Rodar UMA vez, do editor, com a conta DONA da
+ * implantação — é o token dela que o hub libera.
+ */
+function installWarmTrigger() {
+    replaceTrigger('warmHubCache').everyMinutes(5).create();
+    return 'trigger warmHubCache instalado (5 min)';
 }
 
 /** Ignora o cache e vai ao hub. Usado pelos diagnósticos e pelo fetchHubData. */
@@ -86,7 +168,7 @@ function fetchHubDataUncached() {
     const r = hubRequest();
 
     if (r.exception) {
-        return { error: `Falha de rede ao chamar o Gateway: ${r.exception}` };
+        return { error: `Network failure calling the Gateway: ${r.exception}` };
     }
     // 401/403 tem UMA causa só: o token que foi ao hub é de uma conta que o hub não
     // libera. Pela URL do web app isso não acontece — lá o script roda como o dono da
@@ -96,31 +178,78 @@ function fetchHubDataUncached() {
     // página de erro do Google na tela.
     if (r.code === 401 || r.code === 403) {
         return {
-            error: 'O Gateway recusou o acesso para ' + (operatorEmail() || 'esta conta') +
-                ' (HTTP ' + r.code + '). Abra o portal pela URL do web app: por lá ele roda com a conta ' +
-                'do dono da implantação, que já tem acesso ao hub. Pelo menu da planilha o script roda ' +
-                'com a sua própria conta, e ela precisaria ser liberada no Gateway Hub.'
+            error: 'The Gateway denied access for ' + (operatorEmail() || 'this account') +
+                ' (HTTP ' + r.code + '). Open the portal from the web app URL: there it runs as the ' +
+                'deployment owner, who already has access to the hub. From the spreadsheet menu the ' +
+                'script runs as your own account, which would need to be allowed in the Gateway Hub.'
         };
     }
     if (r.code < 200 || r.code >= 300) {
         // Corpo HTML é página de erro do Google: não jogar o markup na tela.
-        const detail = looksLikeHtml(r.body) ? '(devolveu uma página HTML)' : String(r.body).substring(0, 180);
-        return { error: `O Gateway respondeu HTTP ${r.code}. ${detail}` };
+        const detail = looksLikeHtml(r.body) ? '(returned an HTML page)' : String(r.body).substring(0, 180);
+        return { error: `The Gateway answered HTTP ${r.code}. ${detail}` };
     }
     if (looksLikeHtml(r.body)) {
-        return { error: 'O Gateway devolveu uma página HTML de login em vez de JSON: a conta que abriu esta planilha não tem acesso à implantação do hub. Use "🔌 Testar conexão com o Gateway" no menu para ver a resposta crua.' };
+        return { error: 'The Gateway returned an HTML login page instead of JSON: the account that opened this spreadsheet has no access to the hub deployment. Use "🔌 Test Gateway connection" in the menu to see the raw response.' };
     }
 
     let data;
     try {
         data = JSON.parse(r.body);
     } catch (e) {
-        return { error: `O Gateway devolveu um corpo não-JSON: ${String(r.body).substring(0, 180)}` };
+        return { error: `The Gateway returned a non-JSON body: ${String(r.body).substring(0, 180)}` };
     }
-    if (!data) return { error: 'O Gateway devolveu um corpo vazio.' };
+    if (!data) return { error: 'The Gateway returned an empty body.' };
     if (data.error) return { error: `Gateway: ${data.error}` };
     return { data: data };
 }
+
+
+/**
+ * Que chave da linha alimenta cada campo, resolvido UMA vez para o card inteiro.
+ *
+ * Antes isso era feito por linha e por campo, com um for-in em todas as chaves da linha e
+ * um toLowerCase por comparação — O(linhas × campos × chaves). Como as chaves são as
+ * mesmas em todas as linhas, era trabalho jogado fora em toda carga de tela.
+ *
+ * A amostra junta as 5 primeiras linhas: se a primeira vier sem uma coluna, o campo
+ * inteiro sumiria de TODAS as linhas — silencioso, e num pipeline de documento legal.
+ */
+function resolveRowKeys(rows, fields) {
+    const sample = {};
+    for (let i = 0; i < rows.length && i < 5; i++) Object.assign(sample, rows[i]);
+    const rowKeys = Object.keys(sample);
+
+    const out = {};
+    for (const field in fields) {
+        const wanted = fields[field];
+        out[field] = '';
+        for (let t = 0; t < wanted.length && !out[field]; t++) {
+            if (rowKeys.indexOf(wanted[t]) !== -1) { out[field] = wanted[t]; break; }
+            const lower = wanted[t].toLowerCase();
+            for (let i = 0; i < rowKeys.length; i++) {
+                if (rowKeys[i].toLowerCase().indexOf(lower) !== -1) { out[field] = rowKeys[i]; break; }
+            }
+        }
+    }
+    return out;
+}
+
+
+/** Campos do portal e os nomes de coluna que os alimentam, em ordem de preferência. */
+var ROW_FIELDS = {
+    bikeId: ['bikeId', 'bike_id', 'id'],
+    email: ['email'],
+    brand: ['brand', 'make'],
+    model: ['model'],
+    mileageKm: ['mileageKm', 'mileage'],
+    year: ['year'],
+    quote: ['quote', 'estimatedPrice', 'price'],
+    dropOffStartDate: ['dropOffStartDate', 'dropOffDate', 'logisticsId__dropOffStartDate'],
+    dropOffWarehouse: ['dropOffWarehouse', 'warehouse', 'logisticsId__dropOffWarehouse'],
+    firstName: ['firstName', 'pickupAddressId__firstName'],
+    lastName: ['lastName', 'pickupAddressId__lastName']
+};
 
 
 /**
@@ -129,13 +258,16 @@ function fetchHubDataUncached() {
 function getMetabaseData(params) {
     params = params || {};
     const config = getAppConfig();
-    
+
     const selectedWarehouse = (params.warehouse || config.warehouse || CONFIG.DEFAULT_WAREHOUSE).toLowerCase();
     const dateFilter = params.dateFilter || 'today';
     const customStart = params.customStart;
     const customEnd = params.customEnd;
 
-    saveAppConfig(selectedWarehouse);
+    // Gravar a preferência custa 5 idas ao PropertiesService (1 set + 4 deletes de
+    // migração). Isso rodava em TODA carga de tela e TODA troca de armazém, para
+    // reescrever o mesmo valor. Agora só quando o armazém realmente muda.
+    if (selectedWarehouse !== config.warehouse) saveAppConfig(selectedWarehouse);
 
     const hub = fetchHubData();
     if (hub.error) return { error: hub.error };
@@ -144,32 +276,27 @@ function getMetabaseData(params) {
     let normalizedRows = [];
 
     if (Array.isArray(dataObj)) {
-        normalizedRows = dataObj.map(r => {
-            const getVal = (keys) => {
-                for (let t = 0; t < keys.length; t++) {
-                    const k = keys[t];
-                    if (r[k] !== undefined && r[k] !== null) return r[k];
-                    for (let key in r) {
-                        if (key.toLowerCase().includes(k.toLowerCase())) return r[key];
-                    }
-                }
-                return '';
-            };
+        const keyOf = resolveRowKeys(dataObj, ROW_FIELDS);
+        const get = (r, field) => {
+            const k = keyOf[field];
+            if (!k) return '';
+            const v = r[k];
+            return v === undefined || v === null ? '' : v;
+        };
 
-            return {
-                bikeId: String(getVal(['bikeId', 'bike_id', 'id']) || '').trim().toUpperCase(),
-                email: String(getVal(['email']) || '').trim(),
-                brand: String(getVal(['brand', 'make']) || '').trim(),
-                model: String(getVal(['model']) || '').trim(),
-                mileageKm: getVal(['mileageKm', 'mileage']),
-                year: String(getVal(['year']) || '').trim(),
-                quote: getVal(['quote', 'estimatedPrice', 'price']),
-                dropOffStartDate: getVal(['dropOffStartDate', 'dropOffDate', 'logisticsId__dropOffStartDate']),
-                dropOffWarehouse: String(getVal(['dropOffWarehouse', 'warehouse', 'logisticsId__dropOffWarehouse']) || '').trim().toLowerCase(),
-                firstName: String(getVal(['firstName', 'pickupAddressId__firstName']) || '').trim(),
-                lastName: String(getVal(['lastName', 'pickupAddressId__lastName']) || '').trim()
-            };
-        });
+        normalizedRows = dataObj.map(r => ({
+            bikeId: String(get(r, 'bikeId')).trim().toUpperCase(),
+            email: String(get(r, 'email')).trim(),
+            brand: String(get(r, 'brand')).trim(),
+            model: String(get(r, 'model')).trim(),
+            mileageKm: get(r, 'mileageKm'),
+            year: String(get(r, 'year')).trim(),
+            quote: get(r, 'quote'),
+            dropOffStartDate: get(r, 'dropOffStartDate'),
+            dropOffWarehouse: String(get(r, 'dropOffWarehouse')).trim().toLowerCase(),
+            firstName: String(get(r, 'firstName')).trim(),
+            lastName: String(get(r, 'lastName')).trim()
+        }));
     } else if (dataObj.data && dataObj.data.cols && dataObj.data.rows) {
         const rawCols = dataObj.data.cols.map(c => c.name);
         const rawRows = dataObj.data.rows;
@@ -212,7 +339,7 @@ function getMetabaseData(params) {
             lastName: idxLastName !== -1 ? String(r[idxLastName] || '').trim() : ''
         }));
     } else {
-        return { error: "Formato de dados não reconhecido do Gateway Hub." };
+        return { error: "Unrecognised data format from the Gateway Hub." };
     }
 
     const now = new Date();
@@ -234,7 +361,7 @@ function getMetabaseData(params) {
         endDateStr = customEnd;
     }
 
-    const sheetState = readSheetState();
+    const processed = readProcessedIds();
 
     // Resumo do que existe no card, independente do filtro. Uma fila vazia é
     // indistinguível de uma integração quebrada — com isto o estado vazio consegue
@@ -299,11 +426,12 @@ function getMetabaseData(params) {
         const mileageVal = row.mileageKm !== undefined && row.mileageKm !== null ? String(row.mileageKm).trim() : '';
 
         // Reabrir um Beleg precisa carregar o que foi salvo, não os defaults do booking.
-        const saved = sheetState.saved[bikeId] || null;
-        const isProcessed = sheetState.processed.has(bikeId);
+        // `saved` é preenchido depois do filtro, por attachSavedSnapshots: só as linhas
+        // que a fila mostra precisam do snapshot, e ler os JSONs é a parte cara.
+        const isProcessed = processed.has(bikeId);
 
         filteredList.push({
-            saved: saved,
+            saved: null,
             rowIndex: i,
             bikeId: bikeId,
             bikeName: bikeName,
@@ -321,6 +449,8 @@ function getMetabaseData(params) {
             isProcessed: isProcessed
         });
     }
+
+    attachSavedSnapshots(filteredList);
 
     return {
         success: true,

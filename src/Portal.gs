@@ -14,9 +14,33 @@
  * Standalone Web App Entry Point
  */
 function doGet(e) {
-    return renderPortal()
-        .setTitle('🏷️ Upway Drop-off Portal')
+    // O favicon vem daqui, não de um <link rel="icon"> no HTML: o portal é servido dentro
+    // do iframe do sandbox do Apps Script, e quem controla o ícone da ABA é o container.
+    return withFavicon(renderPortal().setTitle('Dropoff Upway'))
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+
+/**
+ * Aplica o favicon sem poder derrubar o portal.
+ *
+ * setFaviconUrl LANÇA quando o Google não aceita o tipo da imagem ("The favicon icon image
+ * type is not supported") — foi o que um data URI de SVG causou aqui. Como a chamada mora
+ * dentro do doGet, um ícone recusado deixava o balcão sem portal NENHUM. Um enfeite não
+ * pode ter esse poder.
+ *
+ * Tenta as URLs em ordem e para na primeira aceita. Se nenhuma passar, a aba fica com o
+ * ícone padrão do Google — exatamente o que havia antes de existir favicon aqui.
+ */
+function withFavicon(out) {
+    for (var i = 0; i < FAVICON_URLS.length; i++) {
+        try {
+            return out.setFaviconUrl(FAVICON_URLS[i]);
+        } catch (e) {
+            console.warn('favicon recusado (' + FAVICON_URLS[i] + '): ' + (e.message || e));
+        }
+    }
+    return out;
 }
 
 
@@ -61,11 +85,11 @@ function getDocAssets(warehouse) {
 function onOpen() {
     const ui = SpreadsheetApp.getUi();
     ui.createMenu('🏷️ Upway Drop-off')
-        .addItem('🚀 Abrir Portal Check-in', 'showCheckinPortal')
+        .addItem('🚀 Open Check-in Portal', 'showCheckinPortal')
         .addSeparator()
-        .addItem('🔌 Testar conexão com o Gateway', 'diagnoseGateway')
-        .addItem('🔎 Inspecionar linhas do card', 'diagnoseRows')
-        .addItem('🧹 Resetar Formatação da Aba', 'resetSheetFormatting')
+        .addItem('🔌 Test Gateway connection', 'diagnoseGateway')
+        .addItem('🔎 Inspect card rows', 'diagnoseRows')
+        .addItem('🧹 Reset sheet formatting', 'resetSheetFormatting')
         .addToUi();
 }
 
@@ -77,8 +101,8 @@ function showCheckinPortal() {
     const html = renderPortal()
         .setWidth(1400)
         .setHeight(880)
-        .setTitle('🏷️ Upway Drop-off Portal');
-    SpreadsheetApp.getUi().showModalDialog(html, '🏷️ Upway Drop-off Portal');
+        .setTitle('Dropoff Upway');
+    SpreadsheetApp.getUi().showModalDialog(html, 'Dropoff Upway');
 }
 
 

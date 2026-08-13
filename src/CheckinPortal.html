@@ -81,7 +81,20 @@
       border-bottom: 1px solid var(--ink-200);
     }
     .header-divider { width: 1px; height: 20px; background: var(--ink-200); }
-    .header-title { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; color: var(--ink-700); }
+    /* "Drop-off desk" ao lado do wordmark.
+       16px não é palpite: o logo tem 16px de CAIXA, mas o wordmark tem descendentes (p, y),
+       então a caixa-alta dele mede 136/189 × 16 ≈ 11,5px. A caixa-alta da Inter é 0,727em,
+       e 11,5 / 0,727 ≈ 15,8 — ou seja, 16px casa caixa-alta com caixa-alta.
+       line-height 1 iguala a caixa do texto à do <svg>, senão o flex centraliza caixas de
+       alturas diferentes e o texto desce. */
+    .header-title {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.01em;
+      color: var(--blue-500);
+    }
     
     .wh-selector-container { margin-left: auto; position: relative; }
     .wh-trigger {
@@ -179,6 +192,14 @@
     .table-card { margin-top: 20px; background: var(--white); border: 1px solid var(--ink-200); border-radius: 20px; overflow: hidden; }
     .table-grid { display: grid; grid-template-columns: 108px minmax(160px, 1.5fr) minmax(130px, 1fr) 96px 168px; align-items: center; gap: 14px; padding: 16px 22px; border-bottom: 1px solid var(--ink-200); }
     .table-header { padding: 13px 22px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); }
+    /* Skeleton da fila. Não usa .table-row de propósito: aquela classe é "linha com
+       dado", e contaminá-la faria hover, filed-row e as buscas do teste enxergarem
+       linha onde não há nenhuma. */
+    .skeleton-row { border-bottom: 1px solid var(--ink-200); }
+    .sk-bar { display: block; height: 12px; border-radius: 6px; background: var(--ink-200); animation: sk-pulse 1.4s ease-in-out infinite; }
+    @keyframes sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+    @media (prefers-reduced-motion: reduce) { .sk-bar { animation: none; } }
+
     .table-row:hover { background: var(--ink-50); }
     .table-row.filed-row { background: var(--ink-50); }
     .table-row.filed-row:hover { background: var(--ink-50); }
@@ -442,7 +463,10 @@
       <div class="queue-head">
         <div>
           <div class="queue-eyebrow" id="queue-eyebrow">Today's schedule</div>
-          <h1 class="queue-title" id="queue-date-title">Monday, 10 August</h1>
+          <!-- Skeleton, não uma data: aqui havia um dia fixo escrito no markup, que o
+               operador lia como agendamento real enquanto a fila carregava.
+               renderQueueHeadings() troca isto pela data de verdade no boot. -->
+          <h1 class="queue-title" id="queue-date-title"><span class="sk-bar" style="width: 190px;"></span></h1>
           <div class="queue-address">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-400)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"></path><circle cx="12" cy="10" r="2.6"></circle></svg>
             <span id="queue-wh-address">Alexander-Meißner-Straße 77D · 12526 Berlin</span>
@@ -451,15 +475,15 @@
 
         <div class="stats-group">
           <div>
-            <div class="stat-val" id="cnt-scheduled">0</div>
+            <div class="stat-val" id="cnt-scheduled">—</div>
             <div class="stat-label">Scheduled</div>
           </div>
           <div>
-            <div class="stat-val" style="color: var(--blue-500);" id="cnt-pending">0</div>
+            <div class="stat-val" style="color: var(--blue-500);" id="cnt-pending">—</div>
             <div class="stat-label">Awaiting check</div>
           </div>
           <div>
-            <div class="stat-val" style="color: var(--green-500);" id="cnt-filed">0</div>
+            <div class="stat-val" style="color: var(--green-500);" id="cnt-filed">—</div>
             <div class="stat-label">Filed</div>
           </div>
         </div>
@@ -920,15 +944,20 @@
     // Só o que a tela precisa mostrar. O link de avaliação de cada UpCenter (o dado que
     // não pode divergir) vive só no Code.gs e chega por getDocAssets() — aqui não há
     // cópia dele para envelhecer.
+    //
+    // Os endereços, porém, SÃO cópia: o portal deixou de ser template e ganhou lista
+    // própria. Corrigir aqui sem corrigir o WAREHOUSE_MAP do Config.gs faz a tela mostrar
+    // um endereço e o Beleg imprimir outro, num documento legal. O pipeline.test.mjs
+    // compara os dois arquivos e falha se divergirem.
     const WAREHOUSES = [
       { name: "Berlin",        city: "Alexander-Meißner-Straße 77D · 12526 Berlin" },
-      { name: "Düsseldorf",    city: "Höherweg 271 · 40231 Düsseldorf" },
-      { name: "Stuttgart",     city: "Hauptstätter Straße 149 · 70178 Stuttgart" },
-      { name: "Amsterdam",     city: "Contactweg 47 · 1014 AN Amsterdam" },
-      { name: "Antwerp",       city: "Noorderlaan 133 · 2030 Antwerpen" },
-      { name: "Gennevilliers", city: "12 Rue des Chardons · 92230 Gennevilliers" },
-      { name: "Los Angeles",   city: "1933 S Broadway · Los Angeles, CA 90007" },
-      { name: "New York",      city: "37-24 24th St · Long Island City, NY 11101" }
+      { name: "Düsseldorf",    city: "Reisholzer Bahnstraße 39 · 40599 Düsseldorf" },
+      { name: "Stuttgart",     city: "Jakob-Friedrich-Wanner-Straße 6 · 75428 Illingen" },
+      { name: "Amsterdam",     city: "Keienbergweg 20 · 1101 GB Amsterdam" },
+      { name: "Antwerp",       city: "Kruisbaan 66B · 2800 Mechelen" },
+      { name: "Gennevilliers", city: "5 Rue Olympe de Gouges · 92230 Gennevilliers" },
+      { name: "Los Angeles",   city: "2400 Marine Ave · Redondo Beach, CA 90278" },
+      { name: "New York",      city: "134 Morgan Ave · Brooklyn, NY 11237" }
     ];
 
     const ACC_ITEMS = [
@@ -1004,10 +1033,13 @@
     }
 
     function setPeriod(period) {
+      // Reclicar o período já ativo é o gesto de "recarregar": é o único jeito de o
+      // operador furar o memo antes do TTL, sem um botão novo no cabeçalho.
+      const force = state.period === period;
       state.period = period;
       document.querySelectorAll(".segment-btn").forEach(s =>
         s.classList.toggle("active", s.getAttribute("data-period") === period));
-      loadScheduleData();
+      loadScheduleData(force);
     }
 
     // --- INITIALIZATION ---
@@ -1159,7 +1191,28 @@
     }
 
     // --- DATA LOADING ---
-    function loadScheduleData() {
+
+    // Resultado memoizado por (armazém, período), enquanto a aba está aberta.
+    //
+    // Trocar de armazém é um filtro sobre o MESMO card que o servidor já tem em cache, mas
+    // cada troca custava um round trip completo de Apps Script — os ~5s que o operador
+    // sentia. Com o memo, voltar a um armazém já visto é instantâneo.
+    //
+    // TTL curto de propósito, alinhado ao cache do hub: longo o bastante para matar o
+    // vai-e-vem entre balcões, curto o bastante para um agendamento novo aparecer.
+    const SCHEDULE_MEMO_TTL = 60000;
+    const scheduleMemo = {};
+
+    function scheduleKey() {
+      return state.warehouse.toLowerCase() + "|" + state.period;
+    }
+
+    /** Esvazia o memo. Um cache sem como ser invalidado não é testável. */
+    function clearScheduleMemo() {
+      Object.keys(scheduleMemo).forEach(k => delete scheduleMemo[k]);
+    }
+
+    function loadScheduleData(force) {
       if (typeof google === "undefined" || !google.script || !google.script.run) {
         state.appointments = [];
         state.error = "This portal only runs inside the spreadsheet. Open it from the 🏷️ Upway Drop-off menu.";
@@ -1167,10 +1220,27 @@
         return;
       }
 
-      showLoading("Loading schedule …");
+      const key = scheduleKey();
+      const hit = scheduleMemo[key];
+      if (!force && hit && Date.now() - hit.at < SCHEDULE_MEMO_TTL) {
+        onDataLoaded(hit.res);
+        return;
+      }
+
+      // Skeleton em vez do overlay: ver renderQueueLoading().
+      renderQueueLoading();
       google.script.run
-        .withSuccessHandler(onDataLoaded)
-        .withFailureHandler(onDataError)
+        .withSuccessHandler(function (res) {
+          // Erro não entra no memo: repetir uma falha de gateway por um minuto esconde a
+          // recuperação e o operador fica olhando um erro que já passou.
+          if (res && !res.error) scheduleMemo[key] = { at: Date.now(), res: res };
+          // Duas trocas de armazém em sequência: a primeira resposta chega depois e
+          // pintava as linhas de Berlim sob o cabeçalho de Düsseldorf.
+          if (scheduleKey() === key) onDataLoaded(res);
+        })
+        .withFailureHandler(function (err) {
+          if (scheduleKey() === key) onDataError(err);
+        })
         .getMetabaseData({
           warehouse: state.warehouse.toLowerCase(),
           dateFilter: state.period
@@ -1282,8 +1352,31 @@
     function shortDate(d) { return d.getDate() + " " + MONTH_NAMES[d.getMonth()]; }
 
     function renderQueueScreen() {
-      const wh = getWhRecord(state.warehouse);
-      document.getElementById("queue-wh-address").textContent = wh.city;
+      renderQueueHeadings();
+
+      // Stats
+      const total = state.appointments.length;
+      const filedCnt = state.appointments.filter(a => state.filed[a.bikeId] || a.filed).length;
+      const pendingCnt = total - filedCnt;
+
+      document.getElementById("cnt-scheduled").textContent = total;
+      document.getElementById("cnt-pending").textContent = pendingCnt;
+      document.getElementById("cnt-filed").textContent = filedCnt;
+
+      renderQueueFeedback();
+      renderQueueRows();
+    }
+
+    /**
+     * Data, período e endereço do cabeçalho. NÃO depende do servidor: é o relógio do
+     * navegador mais o armazém escolhido.
+     *
+     * Vive separado de renderQueueScreen por isso — o markup vinha com um dia da semana e
+     * uma data escritos à mão, e durante a carga o operador lia essa data errada com cara
+     * de dado real. Agora isto roda no boot, antes de qualquer fetch.
+     */
+    function renderQueueHeadings() {
+      document.getElementById("queue-wh-address").textContent = getWhRecord(state.warehouse).city;
 
       // O cabeçalho acompanha o período selecionado: mostrar "Today's schedule" sobre
       // dez dias de agendamentos fazia o operador ler a fila errada.
@@ -1302,19 +1395,40 @@
 
       document.getElementById("queue-eyebrow").textContent = eyebrow;
       document.getElementById("queue-date-title").textContent = title;
-
-      // Stats
-      const total = state.appointments.length;
-      const filedCnt = state.appointments.filter(a => state.filed[a.bikeId] || a.filed).length;
-      const pendingCnt = total - filedCnt;
-
-      document.getElementById("cnt-scheduled").textContent = total;
-      document.getElementById("cnt-pending").textContent = pendingCnt;
-      document.getElementById("cnt-filed").textContent = filedCnt;
-
-      renderQueueFeedback();
-      renderQueueRows();
     }
+
+
+    /**
+     * Estado de carregamento da fila: linhas fantasma e contadores neutros.
+     *
+     * Substitui o overlay para ESTA carga. O overlay tapava a tela inteira com blur, o que
+     * escondia justamente o que o operador precisa ver aparecendo — e deixava "0 Scheduled"
+     * visível por trás, indistinguível de "não há nada hoje". Um traço não é um número.
+     *
+     * O overlay continua para o salvamento no Drive, onde bloquear a tela é o certo.
+     */
+    function renderQueueLoading() {
+      renderQueueHeadings();
+      renderQueueFeedback();
+
+      ["cnt-scheduled", "cnt-pending", "cnt-filed"].forEach(id => {
+        document.getElementById(id).textContent = "—";
+      });
+
+      const container = document.getElementById("table-rows-container");
+      if (!container) return;
+      // 4 linhas: o suficiente para a área da tabela não colapsar e voltar a crescer.
+      container.innerHTML = new Array(4).fill(
+        '<div class="table-grid skeleton-row" aria-hidden="true">' +
+          '<div><span class="sk-bar" style="width: 72px;"></span></div>' +
+          '<div><span class="sk-bar" style="width: 150px;"></span></div>' +
+          '<div><span class="sk-bar" style="width: 120px;"></span></div>' +
+          '<div><span class="sk-bar" style="width: 64px;"></span></div>' +
+          '<div><span class="sk-bar" style="width: 88px;"></span></div>' +
+        '</div>'
+      ).join("");
+    }
+
 
     function renderQueueFeedback() {
       const tableCard = document.querySelector("#screen-queue .table-card");
@@ -1335,7 +1449,8 @@
           '<p class="error-body">' + escapeHtmlText(state.error) + '</p>' +
           '<button class="btn btn-primary" id="btn-retry-load" style="margin-top: 18px;">Try again</button>' +
         '</div>';
-      document.getElementById("btn-retry-load").addEventListener("click", loadScheduleData);
+      // force: "Try again" depois de uma falha tem que ir ao servidor, não ao memo.
+      document.getElementById("btn-retry-load").addEventListener("click", () => loadScheduleData(true));
     }
 
     function renderQueueRows() {
@@ -1815,7 +1930,8 @@
         state.filed[state.form.bikeId] = true;
       }
       switchScreen("queue");
-      loadScheduleData();
+      // force: acabou de arquivar, o memo está provadamente velho.
+      loadScheduleData(true);
     }
 
     function onSaveError(err) {
