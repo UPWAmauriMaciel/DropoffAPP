@@ -277,6 +277,8 @@ ok($('#refresh-btn').classList.contains('failed'), 'botao entra em estado de fal
 ok($('#refresh-label').textContent.trim() === 'Retry', 'botao vira Retry (a falha precisa ser visivel, nao so no tooltip)');
 ok($('#refresh-tip-time').textContent.includes('login'), 'tooltip carrega o motivo real da falha');
 ok($('#refresh-tip').classList.contains('failed'), 'tooltip entra no layout de falha');
+ok($('#refresh-btn').classList.contains('failed'), 'botao entra em .failed — e essa classe que revela o ponto por CSS');
+ok(!!$('.refresh-dot'), 'ponto de erro existe no markup do botao');
 ok($('#refresh-btn').getAttribute('aria-label').includes('login'), 'aria-label repete o motivo para leitor de tela');
 
 // --- 11a2. Falha SEM nada carregado: erro visivel, zero dados inventados ---
@@ -394,6 +396,11 @@ const hhmm = String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getM
 ok(txt('#refresh-tip-time') === hhmm, 'tooltip mostra a hora do snapshot (veio "' + txt('#refresh-tip-time') + '")');
 ok(txt('#refresh-tip-label') === 'Last updated', 'rotulo diz o que o numero e');
 ok(txt('#refresh-label').trim() === 'Update', 'botao volta a Update depois de um refresh bom');
+ok(!$('#refresh-btn').classList.contains('failed'), 'sem .failed o ponto volta a display:none pela regra .refresh-dot');
+
+const dotCss = (html.match(/\.refresh-dot\s*\{[^}]*\}/) || [''])[0];
+ok(/display:\s*none/.test(dotCss), 'ponto comeca invisivel por padrao');
+ok(/\.refresh-btn\.failed \.refresh-dot\s*\{[^}]*display:\s*block/.test(html), 'ponto so aparece com .failed, sem depender de hover');
 
 // --- 12. Sem cores fora do design system ---
 ok(!html.includes('#FFFBEB') && !html.includes('#FCD34D') && !html.includes('#92400E'), 'banner ambar removido');

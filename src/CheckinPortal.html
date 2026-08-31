@@ -217,6 +217,24 @@
        aqui abriria uma cor fora do design system só para este botão. */
     .refresh-btn.failed { border-color: var(--ink-900); color: var(--ink-900); font-weight: 600; }
 
+    /* O ponto é o que faz o operador ir procurar o tooltip: sem ele, um refresh que
+       falhou fica indistinguível de um que deu certo até alguém passar o mouse por
+       acaso. Relative no ícone, não no botão inteiro — assim o ponto acompanha a
+       posição do ícone se o texto do label mudar de largura (Update -> Retry). */
+    .refresh-btn .refresh-icon-wrap { position: relative; display: flex; }
+    .refresh-dot {
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--ink-900);
+      border: 1.5px solid var(--white);
+      display: none;
+    }
+    .refresh-btn.failed .refresh-dot { display: block; }
+
     .refresh-wrap { position: relative; display: flex; }
     .refresh-tip {
       position: absolute;
@@ -579,10 +597,13 @@
              para quem não vê nenhum dos dois. -->
         <div class="refresh-wrap">
           <button type="button" class="refresh-btn" id="refresh-btn" aria-describedby="refresh-tip">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
-              <path d="M21 3v6h-6"></path>
-            </svg>
+            <span class="refresh-icon-wrap">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+                <path d="M21 3v6h-6"></path>
+              </svg>
+              <span class="refresh-dot" aria-hidden="true"></span>
+            </span>
             <span id="refresh-label">Update</span>
           </button>
           <div class="refresh-tip" id="refresh-tip" role="tooltip">
