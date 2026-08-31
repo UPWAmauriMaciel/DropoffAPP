@@ -189,6 +189,35 @@
     .segment-btn:hover { background: var(--ink-100); }
     .segment-btn.active { background: var(--blue-500); color: var(--white); }
 
+    /* Update: mesma familia visual da search-box (44px, ink-300, radius 12) para nao
+       parecer enxertado. NAO usa --blue-500 de proposito — azul e a cor de "ativo" do
+       segmented-control ao lado, e o botao nao deve competir com ele por atencao. */
+    .refresh-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 44px;
+      padding: 0 16px;
+      background: var(--white);
+      border: 1px solid var(--ink-300);
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ink-600);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.18s cubic-bezier(0.2, 0, 0, 1);
+    }
+    .refresh-btn:hover { background: var(--ink-100); color: var(--ink-900); }
+    .refresh-btn:disabled { opacity: 0.55; cursor: default; }
+    .refresh-btn:disabled:hover { background: var(--white); color: var(--ink-600); }
+    .refresh-btn.spinning svg { animation: spin 0.8s linear infinite; transform-origin: 50% 50%; }
+    /* Falha usa contraste, não cor nova: o portal não tem token de alerta e inventar um
+       aqui abriria uma cor fora do design system só para este botão. */
+    .refresh-btn.failed { border-color: var(--ink-900); color: var(--ink-900); font-weight: 600; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     .table-card { margin-top: 20px; background: var(--white); border: 1px solid var(--ink-200); border-radius: 20px; overflow: hidden; }
     .table-grid { display: grid; grid-template-columns: 108px minmax(160px, 1.5fr) minmax(130px, 1fr) 96px 168px; align-items: center; gap: 14px; padding: 16px 22px; border-bottom: 1px solid var(--ink-200); }
     .table-header { padding: 13px 22px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-500); }
@@ -503,6 +532,17 @@
           <div class="segment-btn" data-period="next10days">Next 10 days</div>
           <div class="segment-btn" data-period="past10days">Past 10 days</div>
         </div>
+
+        <!-- O title nativo carrega a idade do dado (renderRefreshButton o reescreve a
+             cada carga). Tooltip do navegador: sem JS de posicionamento e acessivel
+             de graca. -->
+        <button type="button" class="refresh-btn" id="refresh-btn" title="Loading the schedule…">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+            <path d="M21 3v6h-6"></path>
+          </svg>
+          Update
+        </button>
       </div>
 
       <!-- Schedule Table -->
@@ -974,7 +1014,14 @@
       whOpen: false,
       query: "",
       period: "today",
+      // allRows e o card INTEIRO (todos os armazens, todas as datas), carregado uma
+      // vez. appointments e a fatia que o armazem + periodo atuais mostram — derivada
+      // em memoria por applyFilters(), sem ir ao servidor.
+      allRows: [],
       appointments: [],
+      refreshedAt: "",
+      refreshing: false,
+      refreshError: null,
       selectedIndex: -1,
       form: { bikeId: "", seller: "", email: "", brand: "", model: "", mileage: "", frame: "", year: "", battery: "", notes: "", datum: "", uhrzeit: "" },
       // Nada pré-marcado. O Beleg declara o que o cliente entregou de fato: se Akku e
@@ -987,7 +1034,6 @@
       loading: false,
       error: null,
       summary: null,
-      serverTotal: 0,
       savedBikeId: null
     };
 
@@ -1033,19 +1079,17 @@
     }
 
     function setPeriod(period) {
-      // Reclicar o período já ativo é o gesto de "recarregar": é o único jeito de o
-      // operador furar o memo antes do TTL, sem um botão novo no cabeçalho.
-      const force = state.period === period;
       state.period = period;
       document.querySelectorAll(".segment-btn").forEach(s =>
         s.classList.toggle("active", s.getAttribute("data-period") === period));
-      loadScheduleData(force);
+      // Sem rede: o card inteiro já está em state.allRows. Recarregar é o botão Update.
+      applyFilters();
     }
 
     // --- INITIALIZATION ---
     document.addEventListener("DOMContentLoaded", function() {
       setupEventListeners();
-      loadScheduleData();
+      loadSchedule();
     });
 
     function setupEventListeners() {
@@ -1077,6 +1121,11 @@
       searchInput.addEventListener("input", function(e) {
         state.query = e.target.value;
         renderQueueRows();
+      });
+
+      document.getElementById("refresh-btn").addEventListener("click", function() {
+        if (state.refreshing) return;
+        loadSchedule(true);
       });
 
       // Period segments — o controle e os atalhos do estado vazio passam pelo mesmo setPeriod
@@ -1192,59 +1241,44 @@
 
     // --- DATA LOADING ---
 
-    // Resultado memoizado por (armazém, período), enquanto a aba está aberta.
-    //
-    // Trocar de armazém é um filtro sobre o MESMO card que o servidor já tem em cache, mas
-    // cada troca custava um round trip completo de Apps Script — os ~5s que o operador
-    // sentia. Com o memo, voltar a um armazém já visto é instantâneo.
-    //
-    // TTL curto de propósito, alinhado ao cache do hub: longo o bastante para matar o
-    // vai-e-vem entre balcões, curto o bastante para um agendamento novo aparecer.
-    const SCHEDULE_MEMO_TTL = 60000;
-    const scheduleMemo = {};
-
-    function scheduleKey() {
-      return state.warehouse.toLowerCase() + "|" + state.period;
-    }
-
-    /** Esvazia o memo. Um cache sem como ser invalidado não é testável. */
-    function clearScheduleMemo() {
-      Object.keys(scheduleMemo).forEach(k => delete scheduleMemo[k]);
-    }
-
-    function loadScheduleData(force) {
-      if (typeof google === "undefined" || !google.script || !google.script.run) {
+    /**
+     * Uma carga por sessão: o card inteiro vem de uma vez e o filtro passa a ser local.
+     *
+     * Antes, cada troca de armazém ou de período era um round trip de Apps Script — e
+     * era esse o "loading" que aparecia a cada clique, não a query do Metabase (essa já
+     * vinha de cache). Com o card todo na mão, trocar de view é síncrono.
+     *
+     * force = ir ao Metabase e reescrever o snapshot do Drive (o botão Update). Sem
+     * force, lê o snapshot que os triggers das 08h e 12h deixaram pronto.
+     */
+    function loadSchedule(force) {
+      if (!serverReady()) {
+        state.allRows = [];
         state.appointments = [];
         state.error = "This portal only runs inside the spreadsheet. Open it from the 🏷️ Upway Drop-off menu.";
         renderQueueScreen();
         return;
       }
 
-      const key = scheduleKey();
-      const hit = scheduleMemo[key];
-      if (!force && hit && Date.now() - hit.at < SCHEDULE_MEMO_TTL) {
-        onDataLoaded(hit.res);
-        return;
+      if (force) {
+        state.refreshing = true;
+        renderRefreshButton();
+      } else {
+        renderQueueLoading();
       }
 
-      // Skeleton em vez do overlay: ver renderQueueLoading().
-      renderQueueLoading();
-      google.script.run
+      const call = google.script.run
         .withSuccessHandler(function (res) {
-          // Erro não entra no memo: repetir uma falha de gateway por um minuto esconde a
-          // recuperação e o operador fica olhando um erro que já passou.
-          if (res && !res.error) scheduleMemo[key] = { at: Date.now(), res: res };
-          // Duas trocas de armazém em sequência: a primeira resposta chega depois e
-          // pintava as linhas de Berlim sob o cabeçalho de Düsseldorf.
-          if (scheduleKey() === key) onDataLoaded(res);
+          state.refreshing = false;
+          onDataLoaded(res);
         })
         .withFailureHandler(function (err) {
-          if (scheduleKey() === key) onDataError(err);
-        })
-        .getMetabaseData({
-          warehouse: state.warehouse.toLowerCase(),
-          dateFilter: state.period
+          state.refreshing = false;
+          onDataError(err);
         });
+
+      if (force) call.refreshScheduleSnapshot();
+      else call.getScheduleSnapshot();
     }
 
     // google.script.run engole exceções do handler de sucesso: qualquer erro aqui deixava
@@ -1268,16 +1302,29 @@
       // de mentira. Se o gateway falhou, a fila fica vazia e o erro aparece — nunca
       // um dataset de exemplo passando por dado real.
       if (!res || res.error) {
+        const msg = (res && res.error) || "The gateway returned an empty response.";
+
+        // Refresh que falha com fila boa na tela NÃO a descarta: o snapshot das 08:03 é
+        // dado real, e esvaziar a tela com o cliente no balcão é pior que mostrá-lo.
+        // A falha vira estado do botão, não card de erro por cima da fila.
+        if (state.allRows.length) {
+          state.refreshError = msg;
+          renderQueueScreen();
+          return;
+        }
+
+        // Sem nada carregado é o caso original: erro visível e fila vazia. Nunca um
+        // dataset de exemplo passando por dado real.
         state.appointments = [];
-        state.error = (res && res.error) || "The gateway returned an empty response.";
+        state.error = msg;
         renderQueueScreen();
         return;
       }
 
       state.error = null;
-      state.summary = res.summary || null;
-      state.serverTotal = typeof res.total === "number" ? res.total : (res.rows || []).length;
-      state.appointments = (res.rows || []).map(r => {
+      state.refreshError = null;
+      state.refreshedAt = res.refreshedAt || "";
+      state.allRows = (res.rows || []).map(r => {
         const isFiled = !!(state.filed[r.bikeId] || r.isProcessed);
         if (isFiled) state.filed[r.bikeId] = true;
         return {
@@ -1290,11 +1337,76 @@
           customer: r.customerName || "—",
           email: r.email || "",
           quote: r.quote || "€ --",
-          saved: r.saved || null,
+          warehouse: r.warehouse || "",
+          dropOffDate: r.dropOffDate || "",
+          // undefined = ainda não buscado. null = buscado e não existe. O Reopen
+          // distingue os dois para não ir ao servidor duas vezes pela mesma linha.
+          saved: undefined,
           filed: isFiled
         };
       });
 
+      applyFilters();
+    }
+
+    // --- FILTRO LOCAL ---
+    // Espelha matchesWarehouse e o filtro de data do Gateway.gs. Os dois lados precisam
+    // concordar sobre "quais linhas pertencem a esta fila": o pipeline.test.mjs compara
+    // as duas implementações e falha se divergirem.
+
+    function isoOf(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+    function isoShift(days) { return isoOf(new Date(Date.now() + days * 86400000)); }
+
+    /** Linha sem armazém passa: melhor aparecer para o operador decidir do que sumir. */
+    function whMatches(rowWh, selected) {
+      const a = normKey(rowWh), b = normKey(selected);
+      if (!a || !b) return true;
+      return a.indexOf(b) !== -1 || b.indexOf(a) !== -1;
+    }
+
+    /** Linha sem data interpretável passa em qualquer período, como no servidor. */
+    function inPeriod(dateIso, period) {
+      if (period === "all") return true;
+      if (!dateIso || dateIso === "2000-01-01") return true;
+      const today = isoOf(new Date());
+      if (period === "next10days") return dateIso >= today && dateIso <= isoShift(10);
+      if (period === "past10days") return dateIso >= isoShift(-10) && dateIso <= today;
+      return dateIso === today;
+    }
+
+    /**
+     * Recalcula a fila e o resumo a partir de state.allRows. Sem rede.
+     *
+     * O resumo era montado pelo servidor; agora é derivado aqui pela mesma razão que o
+     * filtro: ele descreve o mesmo card que o cliente já tem inteiro na mão.
+     */
+    function applyFilters() {
+      const today = isoOf(new Date());
+      const next10 = isoShift(10);
+      const past10 = isoShift(-10);
+
+      const summary = {
+        totalRows: state.allRows.length,
+        byWarehouse: {},
+        selectedWarehouse: { today: 0, next10days: 0, past10days: 0, otherDates: 0 }
+      };
+
+      state.appointments = state.allRows.filter(r => {
+        const wh = normKey(r.warehouse);
+        if (wh) summary.byWarehouse[wh] = (summary.byWarehouse[wh] || 0) + 1;
+        if (!whMatches(r.warehouse, state.warehouse)) return false;
+
+        const d = r.dropOffDate;
+        if (!d || d === "2000-01-01") summary.selectedWarehouse.otherDates++;
+        else if (d === today) summary.selectedWarehouse.today++;
+        else if (d > today && d <= next10) summary.selectedWarehouse.next10days++;
+        else if (d < today && d >= past10) summary.selectedWarehouse.past10days++;
+        else summary.selectedWarehouse.otherDates++;
+
+        return inPeriod(d, state.period);
+      });
+
+      state.summary = summary;
       renderQueueScreen();
     }
 
@@ -1337,7 +1449,7 @@
       state.warehouse = whName;
       state.whOpen = false;
       renderHeader();
-      loadScheduleData();
+      applyFilters();
       
       // Update form non-berlin fields if open
       if (state.screen === "form") {
@@ -1351,8 +1463,45 @@
 
     function shortDate(d) { return d.getDate() + " " + MONTH_NAMES[d.getMonth()]; }
 
+    /**
+     * Estado do botão Update. A idade do dado vive no `title`, não na toolbar.
+     *
+     * Decisão consciente de manter a barra limpa; o custo é que numa fila vazia
+     * "não há ninguém hoje" e "o snapshot é de ontem" ficam iguais até alguém passar
+     * o mouse. Se isso morder, o carimbo sobe para a toolbar sem mexer no resto.
+     */
+    function renderRefreshButton() {
+      const btn = document.getElementById("refresh-btn");
+      if (!btn) return;
+
+      const failed = !!state.refreshError && !state.refreshing;
+
+      btn.classList.toggle("spinning", state.refreshing);
+      btn.classList.toggle("failed", failed);
+      btn.disabled = state.refreshing;
+      // Um refresh que falhou é um evento, não estado ambiente: o tooltip sozinho não
+      // conta a ninguém que o clique não funcionou. A palavra muda, a cor muda, e o
+      // dado bom continua na tela.
+      btn.lastChild.textContent = failed ? " Retry" : " Update";
+      btn.title = state.refreshing ? "Refreshing from the Gateway …"
+        : failed ? "Refresh failed: " + state.refreshError + " · still showing data from " + refreshedLabel()
+        : "Updated " + refreshedLabel() + " · click to refresh";
+    }
+
+    /** Hora se for de hoje, dia + hora se for de outro dia — que é o caso que importa. */
+    function refreshedLabel() {
+      if (!state.refreshedAt) return "—";
+      const d = new Date(state.refreshedAt);
+      if (isNaN(d.getTime())) return "—";
+
+      const hhmm = pad(d.getHours()) + ":" + pad(d.getMinutes());
+      if (isoOf(d) === isoOf(new Date())) return hhmm;
+      return pad(d.getDate()) + "." + pad(d.getMonth() + 1) + " " + hhmm;
+    }
+
     function renderQueueScreen() {
       renderQueueHeadings();
+      renderRefreshButton();
 
       // Stats
       const total = state.appointments.length;
@@ -1409,6 +1558,7 @@
      */
     function renderQueueLoading() {
       renderQueueHeadings();
+      renderRefreshButton();
       renderQueueFeedback();
 
       ["cnt-scheduled", "cnt-pending", "cnt-filed"].forEach(id => {
@@ -1449,8 +1599,8 @@
           '<p class="error-body">' + escapeHtmlText(state.error) + '</p>' +
           '<button class="btn btn-primary" id="btn-retry-load" style="margin-top: 18px;">Try again</button>' +
         '</div>';
-      // force: "Try again" depois de uma falha tem que ir ao servidor, não ao memo.
-      document.getElementById("btn-retry-load").addEventListener("click", () => loadScheduleData(true));
+      // "Try again" depois de uma falha vai ao Metabase, não ao snapshot velho.
+      document.getElementById("btn-retry-load").addEventListener("click", () => loadSchedule(true));
     }
 
     function renderQueueRows() {
@@ -1570,8 +1720,8 @@
       // servidor mandou linhas e a tela perdeu". Sem isso, os dois casos são idênticos
       // para quem está olhando.
       hints.push(`<div style="margin-top: 14px; font-size: 11.5px; color: var(--ink-400);">` +
-        `gateway: ${s.totalRows} row${s.totalRows === 1 ? "" : "s"} · matched this filter: ${state.serverTotal}` +
-        ` · rendered: ${state.appointments.length}</div>`);
+        `snapshot: ${s.totalRows} row${s.totalRows === 1 ? "" : "s"} · matched this filter: ${state.appointments.length}` +
+        ` · updated ${escapeHtmlText(refreshedLabel())}</div>`);
 
       return wrap(head + hints.join(""));
     }
@@ -1583,11 +1733,40 @@
       return hit ? hit.name : key;
     }
 
+    /**
+     * Abre o check-in. Para linha ARQUIVADA, busca antes o snapshot do formulário.
+     *
+     * O snapshot não vem no payload da fila de propósito: é um JSON de formulário por
+     * linha arquivada e cresceria com a aba para sempre. Só o Reopen paga essa ida, e
+     * uma vez só por linha — `saved` fica em cache no objeto (undefined = não buscado,
+     * null = buscado e não existe).
+     */
     function openCheckinForm(bikeId) {
       const index = state.appointments.findIndex(a => a.bikeId === bikeId);
       const appt = state.appointments[index];
       if (!appt) return;
 
+      if (!appt.filed || appt.saved !== undefined) { fillCheckinForm(appt, index); return; }
+      if (!serverReady()) { appt.saved = null; fillCheckinForm(appt, index); return; }
+
+      showLoading("Loading the saved Beleg …");
+      google.script.run
+        .withSuccessHandler(function(saved) {
+          hideLoading();
+          appt.saved = saved || null;
+          fillCheckinForm(appt, index);
+        })
+        .withFailureHandler(function() {
+          // Snapshot inacessível não pode travar o balcão: abre com os dados do
+          // booking, que é exatamente o que uma linha nunca arquivada mostra.
+          hideLoading();
+          appt.saved = null;
+          fillCheckinForm(appt, index);
+        })
+        .getSavedSnapshot(bikeId);
+    }
+
+    function fillCheckinForm(appt, index) {
       const t = getNowGerman();
       state.selectedIndex = index;
       state.bookedName = appt.customer;
@@ -1854,7 +2033,7 @@
       // Já gravado por um "Print & save": não regravar, só sair.
       if (state.savedBikeId && state.savedBikeId === state.form.bikeId) {
         switchScreen("queue");
-        loadScheduleData();
+        applyFilters();
         return;
       }
       if (!serverReady()) {
@@ -1930,8 +2109,9 @@
         state.filed[state.form.bikeId] = true;
       }
       switchScreen("queue");
-      // force: acabou de arquivar, o memo está provadamente velho.
-      loadScheduleData(true);
+      // Arquivar muda UMA linha, e state.filed já a marcou. Ir ao Metabase por causa
+      // disso torraria um refresh inteiro para redescobrir o que a tela já sabe.
+      applyFilters();
     }
 
     function onSaveError(err) {

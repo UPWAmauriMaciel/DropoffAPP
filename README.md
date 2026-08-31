@@ -117,7 +117,7 @@ No editor do Apps Script, três funções rodáveis (também no menu da planilha
 | Função | Responde |
 |---|---|
 | `runSelfChecks()` | Os helpers puros continuam corretos? |
-| `diagnoseGateway()` | O que o hub respondeu, quantos bytes, e o cache está quente? |
+| `diagnoseGateway()` | O que o hub respondeu, quantos bytes, e de quando é o snapshot? |
 | `diagnoseRows()` | A fila está vazia por falha ou por filtro? |
 
 ## Triggers
@@ -127,12 +127,34 @@ implantação — é o token dela que o Gateway Hub libera.
 
 | Instalador | Frequência | Faz |
 |---|---|---|
-| `installWarmTrigger()` | 5 min | Enche o cache do card antes de alguém abrir o portal |
+| `installRefreshTriggers()` | 08h e 12h, seg–sex | Refaz o snapshot do card no Drive |
 | `installGcTrigger()` | 2 dias, ~4h | Poda os snapshots da aba mais velhos que 30 dias |
 
-Os dois instaladores são idempotentes: removem o trigger anterior do mesmo handler antes
-de criar o novo. Rodar duas vezes não gera dois triggers — o que, no caso do aquecimento,
-dobraria a carga no Metabase.
+Os instaladores são idempotentes: removem o trigger anterior do mesmo handler antes de
+criar o novo. Rodar duas vezes não gera dois triggers — o que dobraria a carga no Metabase.
+
+`installRefreshTriggers()` cria **dois** triggers diários e a guarda de dia útil mora no
+handler (`scheduledRefresh`). Seg–sex × 2 horários via `onWeekDay()` seriam 10 triggers
+contra a cota de 20 por script; assim custa 2.
+
+`nearMinute(3)` **não** garante 08:03: a janela do Apps Script é de ~15 min, então na
+prática cai entre ~07:55 e ~08:10. Se o balcão abrir 08:00 em ponto, baixe `REFRESH_HOURS`
+para `[7, 11]`.
+
+## O snapshot
+
+O card do Metabase vive num JSON no Drive (`_snapshot/card-10495.json`, dentro do Shared
+Drive dos Belege), sobrescrito pelos dois refreshes do dia e pelo botão **Update** do
+portal. Fora desses dois caminhos, **nada** chama o Metabase.
+
+O portal carrega esse snapshot inteiro numa chamada — todos os armazéns, todas as datas —
+e filtra no cliente. Trocar de armazém, de período ou arquivar um Beleg deixou de custar
+round trip; era isso o "loading" a cada clique, não a query.
+
+O preço é staleness assumida: entre 08:03 e 12:03 a fila é congelada, e um agendamento
+criado às 09:00 só aparece depois do próximo refresh ou de um clique em **Update**. A
+idade do dado fica no `title` do botão. Refresh que falha **não** descarta a fila boa que
+já está na tela — o botão vira "Retry" e o motivo vai para o tooltip.
 
 A poda **não apaga linha**. A aba é a trilha de auditoria de um documento legal: Bike ID,
 operador, data e o link do PDF ficam para sempre. O que cresce sem teto é o snapshot do

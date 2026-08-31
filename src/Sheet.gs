@@ -160,6 +160,21 @@ function attachSavedSnapshots(rows) {
 
 
 /**
+ * O snapshot do formulário de UMA linha arquivada, sob demanda.
+ *
+ * O portal carrega a fila inteira numa chamada, mas sem os snapshots: são o pedaço
+ * pesado (um JSON de formulário por linha já arquivada) e só importam quando o
+ * operador clica em Reopen. Buscar um só mantém o payload da fila constante por mais
+ * que a aba cresça.
+ */
+function getSavedSnapshot(bikeId) {
+    const rows = [{ bikeId: String(bikeId || '').trim().toUpperCase(), isProcessed: true, saved: null }];
+    attachSavedSnapshots(rows);
+    return rows[0].saved;
+}
+
+
+/**
  * Logs or updates drop-off record in 'Drop-offs' sheet tab
  */
 function logDropoffToSheet(data) {

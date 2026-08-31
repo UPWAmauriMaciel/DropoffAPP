@@ -87,9 +87,12 @@ function onOpen() {
     ui.createMenu('🏷️ Upway Drop-off')
         .addItem('🚀 Open Check-in Portal', 'showCheckinPortal')
         .addSeparator()
+        .addItem('🔄 Update the schedule now', 'refreshSnapshot')
+        .addSeparator()
         .addItem('🔌 Test Gateway connection', 'diagnoseGateway')
         .addItem('🔎 Inspect card rows', 'diagnoseRows')
         .addItem('🧹 Reset sheet formatting', 'resetSheetFormatting')
+        .addItem('⏰ Install the daily refreshes', 'installRefreshTriggers')
         .addToUi();
 }
 

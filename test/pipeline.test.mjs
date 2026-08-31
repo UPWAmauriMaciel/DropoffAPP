@@ -64,6 +64,26 @@ globalThis.Utilities = {
   computeDigest: () => [1], DigestAlgorithm: { MD5: 'MD5' }
 };
 globalThis.ScriptApp = { getOAuthToken: () => 'tok' };
+
+// Drive em memoria: o snapshot do card vive num arquivo, e e ele que o portal le.
+// Sem isto, cada getMetabaseData iria ao hub e as contas de query nao valeriam nada.
+let driveFiles = {};
+globalThis.__drive = {
+  clear: () => { driveFiles = {}; },
+  raw: () => driveFiles[Object.keys(driveFiles)[0]],
+  count: () => Object.keys(driveFiles).length
+};
+const fakeFile = (name) => ({
+  getBlob: () => ({ getDataAsString: () => driveFiles[name] }),
+  setContent: (c) => { driveFiles[name] = c; }
+});
+const fakeFolder = {
+  getFoldersByName: () => ({ hasNext: () => true, next: () => fakeFolder }),
+  createFolder: () => fakeFolder,
+  getFilesByName: (n) => ({ hasNext: () => n in driveFiles, next: () => fakeFile(n) }),
+  createFile: (n, c) => { driveFiles[n] = c; return fakeFile(n); }
+};
+globalThis.DriveApp = { getFolderById: () => fakeFolder };
 globalThis.Session = { getActiveUser: () => ({ getEmail: () => 'amigo@gmail.com' }) };
 let lastFetchHeaders = null;
 let hubCalls = 0;
@@ -82,7 +102,7 @@ globalThis.UrlFetchApp = {
 };
 
 const code = gsSource();
-new Function(code + '\n;Object.assign(globalThis,{getMetabaseData,runSelfChecks,matchesWarehouse,rowDateIso,reviewUrlFor,dayFolderName,fetchHubDataUncached,logDropoffToSheet,SHEET_HEADERS,readProcessedIds,collectSheetGarbage,parseSheetStamp,WAREHOUSES,WAREHOUSE_MAP,normStr});')();
+new Function(code + '\n;Object.assign(globalThis,{getMetabaseData,runSelfChecks,matchesWarehouse,rowDateIso,reviewUrlFor,dayFolderName,fetchHubDataUncached,logDropoffToSheet,SHEET_HEADERS,readProcessedIds,collectSheetGarbage,parseSheetStamp,WAREHOUSES,WAREHOUSE_MAP,normStr,getScheduleSnapshot,refreshSnapshot,scheduledRefresh,normalizeCardRows,getSavedSnapshot,REFRESH_HOURS,SNAPSHOT_FILE});')();
 
 let fails = 0;
 const ok = (c, n) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) fails++; };
@@ -134,7 +154,7 @@ ok(reviewUrlFor({ name: 'Berlin', city: 'x', gpageId: 'CZuAldi1qpuUEBM' })
 // --- conta sem acesso ao hub: mensagem acionavel, sem HTML na tela ---
 for (const status of [403, 401]) {
   hubStatus = status;
-  globalThis.__cache.clear();
+  globalThis.__cache.clear(); globalThis.__drive.clear();
   const denied = getMetabaseData({ warehouse: 'berlin', dateFilter: 'today' });
   ok(!!denied.error, status + ': devolve erro');
   ok(denied.error.indexOf('amigo@gmail.com') !== -1, status + ': nomeia a conta que foi recusada');
@@ -144,7 +164,7 @@ for (const status of [403, 401]) {
   ok(!denied.rows, status + ': nao devolve linha nenhuma');
 }
 hubStatus = 500;
-globalThis.__cache.clear();
+globalThis.__cache.clear(); globalThis.__drive.clear();
 const boom = getMetabaseData({ warehouse: 'berlin', dateFilter: 'today' });
 ok(boom.error.indexOf('HTTP 500') !== -1 && boom.error.indexOf('HTML page') !== -1,
    '500 com corpo HTML: reporta o status sem colar o markup');
@@ -152,7 +172,7 @@ hubStatus = 200;
 
 
 // --- 10 balcoes ao mesmo tempo: estado compartilhado e carga no Metabase ---
-globalThis.__cache.clear();
+globalThis.__cache.clear(); globalThis.__drive.clear();
 hubCalls = 0;
 for (let i = 0; i < 10; i++) getMetabaseData({ warehouse: 'berlin', dateFilter: 'today' });
 ok(hubCalls === 1, '10 cargas simultaneas = 1 query no Metabase (veio ' + hubCalls + ')');
@@ -213,7 +233,7 @@ globalThis.SpreadsheetApp = { getActiveSpreadsheet: () => ({
   }
 }) };
 
-globalThis.__cache.clear();
+globalThis.__cache.clear(); globalThis.__drive.clear();
 rangeReads = [];
 const comAba = getMetabaseData({ warehouse: 'berlin', dateFilter: 'today' });
 const arquivada = comAba.rows.find(r => r.bikeId === 'RK2AA1');
@@ -269,6 +289,65 @@ logDropoffToSheet({ bikeId: 'RK2AA1', datum: '11.08.2026', seller: 'X', bikeName
 ok(locks === 1 && releases === 1, 'gravacao pega e solta o lock (read-modify-write protegido)');
 ok(sheetRows.length === 1 && sheetRows[0].length === SHEET_HEADERS.length, 'linha gravada com todas as colunas');
 ok(sheetRows[0][10] === 'amigo@gmail.com', 'coluna Operador preenchida (trilha de auditoria)');
+
+// --- snapshot no Drive: e ele que o portal le, e so o refresh vai ao Metabase ---
+globalThis.__cache.clear(); globalThis.__drive.clear();
+hubCalls = 0;
+const snap1 = getScheduleSnapshot();
+ok(hubCalls === 1, 'sem snapshot gravado, a primeira carga busca ao vivo (veio ' + hubCalls + ')');
+ok(globalThis.__drive.count() === 1, 'a busca ao vivo grava o snapshot no Drive');
+ok(JSON.parse(globalThis.__drive.raw()).rows.length === PAYLOAD.length, 'o snapshot guarda o card INTEIRO, nao a fatia filtrada');
+ok(snap1.rows.length === PAYLOAD.length, 'a fila do portal recebe todas as linhas, de todos os armazens');
+ok(!!snap1.refreshedAt, 'snapshot carimba quando foi atualizado');
+ok(snap1.rows.every(r => r.saved === null), 'a fila NAO carrega o JSON do formulario (esse vem sob demanda)');
+ok(snap1.rows.some(r => r.warehouse === 'dusseldorf') && snap1.rows.some(r => r.warehouse === 'berlin'),
+   'cada linha carrega o proprio armazem: e por ele que o cliente filtra');
+
+hubCalls = 0;
+globalThis.__cache.clear();                       // cache frio, snapshot ainda no Drive
+getScheduleSnapshot(); getScheduleSnapshot();
+getMetabaseData({ warehouse: 'berlin', dateFilter: 'today' });
+ok(hubCalls === 0, 'com snapshot gravado, NENHUMA carga vai ao Metabase (veio ' + hubCalls + ')');
+
+hubCalls = 0;
+refreshSnapshot();
+ok(hubCalls === 1, 'o refresh e o unico caminho ate o Metabase');
+
+// Gateway fora nao pode apagar o snapshot bom: e dado real que o balcao ainda usa.
+const antes = globalThis.__drive.raw();
+hubStatus = 500;
+const falhou = refreshSnapshot();
+ok(!!falhou.error, 'refresh com gateway fora devolve erro');
+ok(globalThis.__drive.raw() === antes, 'refresh que falha NAO sobrescreve o snapshot bom');
+hubStatus = 200;
+
+// Fim de semana: os dois triggers rodam todo dia e a guarda no handler e que decide.
+const realDate = globalThis.Date;
+let dia = 0;
+globalThis.Date = class extends realDate { getDay() { return dia; } };
+globalThis.Date.now = realDate.now;
+hubCalls = 0;
+dia = 0; ok(scheduledRefresh().skipped === 'weekend', 'domingo nao atualiza');
+dia = 6; ok(scheduledRefresh().skipped === 'weekend', 'sabado nao atualiza');
+ok(hubCalls === 0, 'fim de semana nao gasta query no Metabase');
+dia = 3; ok(!scheduledRefresh().skipped, 'quarta atualiza');
+ok(hubCalls === 1, 'dia util faz exatamente 1 query');
+globalThis.Date = realDate;
+
+ok(REFRESH_HOURS.length === 2 && REFRESH_HOURS[1] - REFRESH_HOURS[0] === 4,
+   'dois refreshes por dia, o segundo 4h depois do primeiro');
+ok(SNAPSHOT_FILE.indexOf('10495') !== -1, 'o arquivo do snapshot nomeia o card');
+
+// As duas formas de card do Metabase tem que produzir a MESMA linha.
+const chaves = Object.keys(PAYLOAD[0]);
+const comoArray = normalizeCardRows(PAYLOAD);
+const comoCols = normalizeCardRows({ data: {
+  cols: chaves.map(n => ({ name: n })),
+  rows: PAYLOAD.map(r => chaves.map(k => r[k]))
+} });
+ok(JSON.stringify(comoArray) === JSON.stringify(comoCols),
+   'array de objetos e envelope cols/rows normalizam igual');
+ok(normalizeCardRows({ lixo: 1 }) === null, 'formato desconhecido devolve null, nao meia linha');
 
 console.log('\n' + (fails ? fails + ' FALHA(S)' : 'pipeline: todos os checks passaram'));
 process.exit(fails ? 1 : 0);

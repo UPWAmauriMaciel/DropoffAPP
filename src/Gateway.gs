@@ -45,33 +45,19 @@ function looksLikeHtml(body) {
 }
 
 
-/**
- * Chama o hub e devolve { data } ou { error } já legível para a UI.
- *
- * O card inteiro vem numa tacada e o filtro (armazém, período) é aplicado depois, em
- * memória. Isso torna a resposta cacheável: sem cache, cada carga de tela, troca de
- * período e troca de armazém disparava uma query no Metabase — com 10 balcões abertos
- * isso multiplica por 10 sem que nenhum dado tenha mudado.
- *
- * TTL curto de propósito: 60s corta a rajada de aberturas simultâneas e ainda deixa um
- * agendamento novo aparecer no minuto seguinte.
- */
-var HUB_CACHE_KEY = 'hub_card_' + CONFIG.CARD_ID;
-// 420s, e não os 300s do trigger de warmHubCache: com TTL igual ao intervalo o cache
-// vence pouco antes do próximo aquecimento e alguém pega a janela fria.
-var HUB_CACHE_TTL = 420;
+// Teto do CacheService: 100 KB por chave. 90 KB deixa folga para a chave-indice.
 var CACHE_CHUNK = 90000;
 
 
 /**
- * Grava um valor grande no CacheService em pedaços.
+ * Grava um valor grande no CacheService em pedacos.
  *
- * O teto é 100 KB POR CHAVE e o put acima disso falha CALADO. A versão anterior nem
- * tentava passando de 100 KB — o que significa que, com o card grande, o cache nunca
- * ligava e TODA abertura do portal pagava a query inteira no Metabase. Daí os 10s.
+ * O teto e 100 KB POR CHAVE e o put acima disso falha CALADO. Com o card grande isso
+ * significava que o cache nunca ligava e toda abertura pagava a query inteira.
  *
- * A chave-índice guarda quantos pedaços existem. Se faltar qualquer um (evicção parcial),
- * a leitura devolve null e vai ao hub — nunca um card truncado passando por completo.
+ * A chave-indice guarda quantos pedacos existem. Se faltar qualquer um (eviccao
+ * parcial), a leitura devolve null e vai a fonte — nunca um card truncado passando
+ * por completo.
  */
 function cachePutChunked(cache, key, raw, ttl) {
     const parts = {};
@@ -103,67 +89,27 @@ function cacheGetChunked(cache, key) {
 }
 
 
-function fetchHubData() {
-    const cache = CacheService.getScriptCache();
-
-    const cached = cacheGetChunked(cache, HUB_CACHE_KEY);
-    if (cached) {
-        try {
-            return { data: JSON.parse(cached), cached: true };
-        } catch (e) {
-            cache.remove(HUB_CACHE_KEY);
-        }
-    }
-
-    const fresh = fetchHubDataUncached();
-    if (!fresh.error) cachePutChunked(cache, HUB_CACHE_KEY, JSON.stringify(fresh.data), HUB_CACHE_TTL);
-    return fresh;
-}
-
-
 /**
- * Enche o cache do card ANTES de alguém abrir o portal. Alvo de um trigger de 5 min.
- *
- * A query do Metabase é o trecho caro da abertura, e quem paga por ela hoje é o operador
- * com o cliente na frente. Com o aquecimento em background o cache nunca está frio no
- * horário do balcão. Instalar uma vez com installWarmTrigger().
- */
-function warmHubCache() {
-    const fresh = fetchHubDataUncached();
-    if (fresh.error) {
-        console.warn('warmHubCache: ' + fresh.error);
-        return { error: fresh.error };
-    }
-    const raw = JSON.stringify(fresh.data);
-    cachePutChunked(CacheService.getScriptCache(), HUB_CACHE_KEY, raw, HUB_CACHE_TTL);
-    return { ok: true, bytes: raw.length };
-}
-
-
-/**
- * Remove os triggers de um handler e devolve o builder para o novo.
+ * Remove os triggers de um handler.
  *
  * Sem a remoção, rodar o instalador duas vezes deixa DOIS triggers do mesmo handler —
- * dobra de execuções, e no caso do aquecimento dobra de query no Metabase.
+ * dobra de execuções, e no caso do refresh dobra de query no Metabase.
  */
-function replaceTrigger(handler) {
+function dropTriggers(handler) {
     ScriptApp.getProjectTriggers().forEach(t => {
         if (t.getHandlerFunction() === handler) ScriptApp.deleteTrigger(t);
     });
+}
+
+
+/** dropTriggers + o builder do novo, para quem instala UM trigger só. */
+function replaceTrigger(handler) {
+    dropTriggers(handler);
     return ScriptApp.newTrigger(handler).timeBased();
 }
 
 
-/**
- * Instala o trigger de aquecimento. Rodar UMA vez, do editor, com a conta DONA da
- * implantação — é o token dela que o hub libera.
- */
-function installWarmTrigger() {
-    replaceTrigger('warmHubCache').everyMinutes(5).create();
-    return 'trigger warmHubCache instalado (5 min)';
-}
-
-/** Ignora o cache e vai ao hub. Usado pelos diagnósticos e pelo fetchHubData. */
+/** A única função que fala com o Metabase. Chamada pelo refreshSnapshot e pelos diagnósticos. */
 function fetchHubDataUncached() {
     const r = hubRequest();
 
@@ -253,7 +199,127 @@ var ROW_FIELDS = {
 
 
 /**
- * Fetches drop-off bike records via Upway Gateway Hub (Zero credentials stored in ScriptProperties)
+ * O card cru do hub virado em linhas com os nomes que o portal usa. null se o
+ * formato nao for reconhecido.
+ *
+ * Duas formas chegam aqui: array de objetos (o export json do card) e o envelope
+ * { data: { cols, rows } } do Metabase. As duas produzem a MESMA linha — e por isso
+ * que o resto do codigo nunca precisa saber qual veio.
+ */
+function normalizeCardRows(dataObj) {
+    if (!dataObj) return null;
+
+    if (Array.isArray(dataObj)) {
+        const keyOf = resolveRowKeys(dataObj, ROW_FIELDS);
+        const get = (r, field) => {
+            const k = keyOf[field];
+            if (!k) return '';
+            const v = r[k];
+            return v === undefined || v === null ? '' : v;
+        };
+
+        return dataObj.map(r => ({
+            bikeId: String(get(r, 'bikeId')).trim().toUpperCase(),
+            email: String(get(r, 'email')).trim(),
+            brand: String(get(r, 'brand')).trim(),
+            model: String(get(r, 'model')).trim(),
+            mileageKm: get(r, 'mileageKm'),
+            year: String(get(r, 'year')).trim(),
+            quote: get(r, 'quote'),
+            dropOffStartDate: get(r, 'dropOffStartDate'),
+            dropOffWarehouse: String(get(r, 'dropOffWarehouse')).trim().toLowerCase(),
+            firstName: String(get(r, 'firstName')).trim(),
+            lastName: String(get(r, 'lastName')).trim()
+        }));
+    }
+
+    if (dataObj.data && dataObj.data.cols && dataObj.data.rows) {
+        const rawCols = dataObj.data.cols.map(c => c.name);
+
+        const findCol = (targetNames) => {
+            for (let i = 0; i < rawCols.length; i++) {
+                const colName = rawCols[i];
+                for (let t = 0; t < targetNames.length; t++) {
+                    if (colName === targetNames[t] || colName.toLowerCase().includes(targetNames[t].toLowerCase())) {
+                        return i;
+                    }
+                }
+            }
+            return -1;
+        };
+
+        const idx = {};
+        for (const field in ROW_FIELDS) idx[field] = findCol(ROW_FIELDS[field]);
+        const at = (r, field) => (idx[field] !== -1 && r[idx[field]] !== undefined && r[idx[field]] !== null ? r[idx[field]] : '');
+
+        return dataObj.data.rows.map(r => ({
+            bikeId: String(at(r, 'bikeId')).trim().toUpperCase(),
+            email: String(at(r, 'email')).trim(),
+            brand: String(at(r, 'brand')).trim(),
+            model: String(at(r, 'model')).trim(),
+            mileageKm: at(r, 'mileageKm'),
+            year: String(at(r, 'year')).trim(),
+            quote: at(r, 'quote'),
+            dropOffStartDate: at(r, 'dropOffStartDate'),
+            dropOffWarehouse: String(at(r, 'dropOffWarehouse')).trim().toLowerCase(),
+            firstName: String(at(r, 'firstName')).trim(),
+            lastName: String(at(r, 'lastName')).trim()
+        }));
+    }
+
+    return null;
+}
+
+
+/**
+ * A linha normalizada como a FILA a mostra: nomes juntos, cotacao formatada, data ISO.
+ *
+ * Uma funcao so para os dois caminhos (getScheduleSnapshot e getMetabaseData). Com
+ * duas copias, a fila do portal e a dos diagnosticos podiam divergir sem ninguem ver.
+ */
+function scheduleRow(row, bikeId, isProcessed) {
+    const brand = row.brand || '';
+    const model = row.model || '';
+    const firstName = row.firstName || '';
+    const lastName = row.lastName || '';
+
+    // O card devolve número puro (1661). O handoff mostra "€ 1.890": separador
+    // alemão e sem centavos — cotação é em euro inteiro.
+    let quote = row.quote;
+    if (quote !== '' && quote !== null && quote !== undefined && !isNaN(quote)) {
+        quote = '€ ' + Math.round(parseFloat(quote)).toLocaleString('de-DE');
+    } else {
+        quote = quote ? '€ ' + quote : '€ --';
+    }
+
+    return {
+        // Preenchido sob demanda pelo Reopen (getSavedSnapshot), nunca no payload da fila.
+        saved: null,
+        bikeId: bikeId,
+        bikeName: (brand || model) ? (brand + ' ' + model).trim() : 'N/A',
+        brand: brand,
+        model: model,
+        year: row.year || '',
+        customerName: (firstName || lastName) ? (firstName + ' ' + lastName).trim() : 'Cliente',
+        firstName: firstName,
+        lastName: lastName,
+        quote: quote,
+        email: row.email || '',
+        mileage: row.mileageKm !== undefined && row.mileageKm !== null ? String(row.mileageKm).trim() : '',
+        dropOffDate: rowDateIso(row),
+        warehouse: String(row.dropOffWarehouse || '').trim().toLowerCase(),
+        isProcessed: isProcessed
+    };
+}
+
+
+/**
+ * A fila JA FILTRADA por armazem e periodo, montada no servidor.
+ *
+ * O portal nao usa mais este caminho — ele pega tudo de uma vez em
+ * getScheduleSnapshot() e filtra no cliente. Continua aqui porque e o que os
+ * diagnosticos do menu imprimem e o que o pipeline.test.mjs verifica: e a definicao
+ * executavel de "quais linhas pertencem a esta fila".
  */
 function getMetabaseData(params) {
     params = params || {};
@@ -269,78 +335,9 @@ function getMetabaseData(params) {
     // reescrever o mesmo valor. Agora só quando o armazém realmente muda.
     if (selectedWarehouse !== config.warehouse) saveAppConfig(selectedWarehouse);
 
-    const hub = fetchHubData();
-    if (hub.error) return { error: hub.error };
-    const dataObj = hub.data;
-
-    let normalizedRows = [];
-
-    if (Array.isArray(dataObj)) {
-        const keyOf = resolveRowKeys(dataObj, ROW_FIELDS);
-        const get = (r, field) => {
-            const k = keyOf[field];
-            if (!k) return '';
-            const v = r[k];
-            return v === undefined || v === null ? '' : v;
-        };
-
-        normalizedRows = dataObj.map(r => ({
-            bikeId: String(get(r, 'bikeId')).trim().toUpperCase(),
-            email: String(get(r, 'email')).trim(),
-            brand: String(get(r, 'brand')).trim(),
-            model: String(get(r, 'model')).trim(),
-            mileageKm: get(r, 'mileageKm'),
-            year: String(get(r, 'year')).trim(),
-            quote: get(r, 'quote'),
-            dropOffStartDate: get(r, 'dropOffStartDate'),
-            dropOffWarehouse: String(get(r, 'dropOffWarehouse')).trim().toLowerCase(),
-            firstName: String(get(r, 'firstName')).trim(),
-            lastName: String(get(r, 'lastName')).trim()
-        }));
-    } else if (dataObj.data && dataObj.data.cols && dataObj.data.rows) {
-        const rawCols = dataObj.data.cols.map(c => c.name);
-        const rawRows = dataObj.data.rows;
-
-        const findCol = (targetNames) => {
-            for (let i = 0; i < rawCols.length; i++) {
-                const colName = rawCols[i];
-                for (let t = 0; t < targetNames.length; t++) {
-                    if (colName === targetNames[t] || colName.toLowerCase().includes(targetNames[t].toLowerCase())) {
-                        return i;
-                    }
-                }
-            }
-            return -1;
-        };
-
-        const idxWh = findCol(['dropOffWarehouse', 'logisticsId__dropOffWarehouse']);
-        const idxDate = findCol(['dropOffDate', 'dropOffStartDate', 'logisticsId__dropOffStartDate']);
-        const idxBikeId = findCol(['bikeId', 'bike_id', 'id']);
-        const idxQuote = findCol(['quote', 'estimatedPrice', 'price']);
-        const idxBrand = findCol(['brand', 'make']);
-        const idxModel = findCol(['model']);
-        const idxYear = findCol(['year']);
-        const idxFirstName = findCol(['firstName', 'AddressId__firstName']);
-        const idxLastName = findCol(['lastName', 'AddressId__lastName']);
-        const idxEmail = findCol(['email']);
-        const idxMileage = findCol(['mileageKm', 'mileage']);
-
-        normalizedRows = rawRows.map(r => ({
-            bikeId: idxBikeId !== -1 ? String(r[idxBikeId] || '').trim().toUpperCase() : '',
-            email: idxEmail !== -1 ? String(r[idxEmail] || '').trim() : '',
-            brand: idxBrand !== -1 ? String(r[idxBrand] || '').trim() : '',
-            model: idxModel !== -1 ? String(r[idxModel] || '').trim() : '',
-            mileageKm: idxMileage !== -1 ? r[idxMileage] : '',
-            year: idxYear !== -1 ? String(r[idxYear] || '').trim() : '',
-            quote: idxQuote !== -1 ? r[idxQuote] : '',
-            dropOffStartDate: idxDate !== -1 ? r[idxDate] : '',
-            dropOffWarehouse: idxWh !== -1 ? String(r[idxWh] || '').trim().toLowerCase() : '',
-            firstName: idxFirstName !== -1 ? String(r[idxFirstName] || '').trim() : '',
-            lastName: idxLastName !== -1 ? String(r[idxLastName] || '').trim() : ''
-        }));
-    } else {
-        return { error: "Unrecognised data format from the Gateway Hub." };
-    }
+    const snap = loadSnapshot();
+    if (snap.error) return { error: snap.error };
+    const normalizedRows = snap.rows;
 
     const now = new Date();
     const todayStr = formatDateISO(now);
@@ -404,50 +401,10 @@ function getMetabaseData(params) {
         const bikeId = row.bikeId || `ROW-${i+1}`;
         if (!bikeId || bikeId === 'N/A') continue;
 
-        const brand = row.brand || '';
-        const model = row.model || '';
-        const bikeName = (brand || model) ? `${brand} ${model}`.trim() : 'N/A';
-        const yearVal = row.year || '';
-
-        const firstName = row.firstName || '';
-        const lastName = row.lastName || '';
-        const customerName = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : 'Cliente';
-
-        // O card devolve número puro (1661). O handoff mostra "€ 1.890": separador
-        // alemão e sem centavos — cotação é em euro inteiro.
-        let quoteVal = row.quote;
-        if (quoteVal !== '' && quoteVal !== null && quoteVal !== undefined && !isNaN(quoteVal)) {
-            quoteVal = '€ ' + Math.round(parseFloat(quoteVal)).toLocaleString('de-DE');
-        } else {
-            quoteVal = quoteVal ? `€ ${quoteVal}` : '€ --';
-        }
-
-        const emailVal = row.email || '';
-        const mileageVal = row.mileageKm !== undefined && row.mileageKm !== null ? String(row.mileageKm).trim() : '';
-
         // Reabrir um Beleg precisa carregar o que foi salvo, não os defaults do booking.
         // `saved` é preenchido depois do filtro, por attachSavedSnapshots: só as linhas
         // que a fila mostra precisam do snapshot, e ler os JSONs é a parte cara.
-        const isProcessed = processed.has(bikeId);
-
-        filteredList.push({
-            saved: null,
-            rowIndex: i,
-            bikeId: bikeId,
-            bikeName: bikeName,
-            brand: brand,
-            model: model,
-            year: yearVal,
-            customerName: customerName,
-            firstName: firstName,
-            lastName: lastName,
-            quote: quoteVal,
-            email: emailVal,
-            mileage: mileageVal,
-            dropOffDate: dateValStr,
-            warehouse: selectedWarehouse,
-            isProcessed: isProcessed
-        });
+        filteredList.push(scheduleRow(row, bikeId, processed.has(bikeId)));
     }
 
     attachSavedSnapshots(filteredList);

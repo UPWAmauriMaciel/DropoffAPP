@@ -27,7 +27,7 @@ function diagnoseGateway() {
         // calado: toda abertura pagava a query do Metabase. Hoje vai em pedaços, e este
         // número diz quantos — se der 0 pedaços com corpo grande, o cache está mudo.
         'Tamanho do corpo: ' + bytes + ' bytes (' + Math.ceil(bytes / CACHE_CHUNK) + ' pedaço(s) de cache)',
-        'Cache do card agora: ' + (cacheGetChunked(CacheService.getScriptCache(), HUB_CACHE_KEY) ? 'QUENTE' : 'frio'),
+        'Snapshot no Drive: ' + snapshotAge(),
         '',
         'Primeiros 500 caracteres:',
         String(r.body || '(vazio)').substring(0, 500)

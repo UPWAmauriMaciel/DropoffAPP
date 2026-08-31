@@ -54,6 +54,7 @@ input(search);
 const filedBtn = doc.querySelector('#table-rows-container .filed-row [data-open-bike]');
 ok(filedBtn && filedBtn.textContent.trim() === 'Reopen', 'linha arquivada mostra Reopen');
 click(filedBtn);
+await wait(120);   // Reopen busca o snapshot sob demanda (getSavedSnapshot)
 ok($('#input-frame').value === 'WBK1234567', 'Rahmennummer salva restaurada (veio "' + $('#input-frame').value + '")');
 ok($('#input-notes').value === 'Kratzer am Rahmen', 'Notizen salvas restauradas');
 ok(txt('#handover-meta-cnt') === '3 of 4 handed over', 'acessorios salvos restaurados (3 de 4)');
@@ -67,6 +68,7 @@ ok(/E-Mail/.test(doc.querySelector('#summary-rows-container').textContent), 'pai
 
 // bike sem snapshot: o e-mail vem prefilled do gateway
 click($('#btn-back-queue'));
+await wait(60);
 const semSnapshot = [...doc.querySelectorAll('#table-rows-container [data-open-bike]')]
   .find(b => b.getAttribute('data-open-bike') === 'RK2FP1');
 click(semSnapshot);
@@ -107,13 +109,16 @@ ok(doc.querySelector('#summary-rows-container').textContent.includes('Batterie')
 window.selectWarehouse('Berlin');
 await wait(250);
 
-// --- 7. Periodo manda o vocabulario do servidor ---
+// --- 7. Periodo filtra local: sem round trip e sem perder o cabecalho ---
 const logs = [];
 const origLog = window.console.log;
 window.console.log = (...a) => { logs.push(a.join(' ')); origLog(...a); };
 click([...doc.querySelectorAll('.segment-btn')].find(b => b.textContent.includes('Next')));
 await wait(250);
-ok(logs.some(l => l.includes('"dateFilter":"next10days"')), 'segmento Next manda dateFilter=next10days');
+ok(!logs.some(l => l.includes('[stub] getScheduleSnapshot')), 'trocar de periodo nao chama o servidor');
+ok(txt('#queue-eyebrow') === 'Next 10 days', 'cabecalho acompanha o periodo');
+// As 3 linhas do stub sao de HOJE: em next10days elas continuam (hoje <= hoje+10).
+ok(doc.querySelectorAll('#table-rows-container .table-row').length === 3, 'next10days inclui as de hoje');
 ok(txt('#queue-eyebrow') === 'Next 10 days', 'eyebrow acompanha o periodo');
 ok(txt('#queue-date-title').includes('–'), 'titulo mostra o intervalo, nao a data de hoje');
 
@@ -260,11 +265,26 @@ window.__h({ error: 'Nao foi possivel abrir a pasta do Drive' });
 ok($('#screen-doc').classList.contains('active'), 'erro no save mantem o operador na tela do documento');
 ok($('#doc-error-box') && $('#doc-error-box').textContent.includes('Not saved to Drive'), 'erro do save fica visivel');
 
-// --- 11. Falha do gateway: erro visivel, zero dados inventados ---
+// --- 11. Falha do REFRESH com fila boa: o dado das 08:03 fica, o botao avisa ---
+// Esvaziar a tela porque um refresh manual falhou tira do operador dado real que ele
+// ja tinha. A falha e um evento do botao, nao um card de erro por cima da fila.
 window.google.script.run.withSuccessHandler = function (h) { window.__h2 = h; return window.google.script.run; };
-window.loadScheduleData(true);  // force: sem isto o memo de (armazem, periodo) responde e nao ha round trip
+window.loadSchedule(true);
 window.__h2({ error: 'The Gateway returned an HTML login page instead of JSON' });
-ok($('#queue-feedback').style.display === 'block', 'card de erro aparece');
+ok(doc.querySelectorAll('#table-rows-container .table-row').length === 3, 'refresh que falha NAO descarta a fila carregada');
+ok($('#queue-feedback').style.display === 'none', 'sem card de erro por cima de dado bom');
+ok($('#refresh-btn').classList.contains('failed'), 'botao entra em estado de falha');
+ok($('#refresh-btn').textContent.trim() === 'Retry', 'botao vira Retry (a falha precisa ser visivel, nao so no tooltip)');
+ok($('#refresh-btn').title.includes('login'), 'tooltip carrega o motivo real da falha');
+
+// --- 11a2. Falha SEM nada carregado: erro visivel, zero dados inventados ---
+window.google.script.run.withSuccessHandler = function (h) { window.__h3 = h; return window.google.script.run; };
+// Uma carga com zero linhas esvazia allRows: e o estado de quem acabou de abrir o portal.
+window.loadSchedule(true);
+window.__h3({ success: true, refreshedAt: new Date().toISOString(), total: 0, rows: [] });
+window.loadSchedule(true);
+window.__h3({ error: 'The Gateway returned an HTML login page instead of JSON' });
+ok($('#queue-feedback').style.display === 'block', 'card de erro aparece quando nao ha nada carregado');
 ok($('#queue-feedback').textContent.includes('login'), 'mensagem real do gateway e mostrada');
 ok(doc.querySelector('#screen-queue .table-card').style.display === 'none', 'tabela escondida no erro');
 ok(doc.querySelectorAll('#table-rows-container .table-row').length === 0, 'nenhuma linha inventada no erro');
@@ -273,9 +293,12 @@ ok(!!$('#btn-retry-load'), 'botao Try again presente');
 
 // --- 11b. Fila vazia por FILTRO: nao e beco sem saida, diz onde estao os drop-offs ---
 window.google.script.run.withSuccessHandler = origSuccess; // devolve o stub real
-window.clearScheduleMemo();  // (berlin|today) ja esta memoizado da secao 1 com 3 linhas
-window.__emptyNext = true;
+// Deixa vazar os setTimeout que as secoes 11/11a2 deixaram pendentes no stub: sem isto
+// eles chegam depois e repintam a fila por cima do feed vazio.
+await wait(250);
 window.setPeriod('today');
+window.__emptyNext = true;
+window.loadSchedule();   // o filtro e local: so uma carga troca o feed
 await wait(250);
 const empty = doc.querySelector('#table-rows-container').textContent;
 ok(doc.querySelector('#screen-queue .table-card').style.display !== 'none', 'tabela continua visivel (nao e erro, e filtro)');
@@ -288,35 +311,41 @@ click(doc.querySelector('[data-jump-period="next10days"]'));
 await wait(250);
 ok($('.segment-btn.active').textContent.includes('Next'), 'atalho do estado vazio muda o segmento ativo');
 
-// --- 11c. Memo por (armazem, periodo): trocar de balcao e voltar nao volta ao servidor ---
-// Era aqui que estavam os ~5s da troca de armazem: um round trip inteiro de Apps Script
-// para refiltrar o MESMO card que o servidor ja tem em cache.
-const realGet = window.google.script.run.getMetabaseData;
-let hubCalls = 0;
-window.google.script.run.getMetabaseData = function (p) {
-  hubCalls++;
-  return realGet.call(window.google.script.run, p);
+// --- 11c. Trocar de armazem e de periodo NAO fala com o servidor ---
+// Era aqui que estavam os ~5s por clique: um round trip inteiro de Apps Script para
+// refiltrar o MESMO card. O card inteiro agora vem numa carga e o filtro e local.
+const realSnap = window.google.script.run.getScheduleSnapshot;
+let serverCalls = 0;
+window.google.script.run.getScheduleSnapshot = function () {
+  serverCalls++;
+  return realSnap.call(window.google.script.run);
 };
-window.clearScheduleMemo();
+window.loadSchedule();
+await wait(250);
+serverCalls = 0;
 for (const wh of ['Stuttgart', 'Berlin', 'Stuttgart', 'Berlin']) {
   window.selectWarehouse(wh);
-  await wait(150);
+  await wait(30);
 }
-ok(hubCalls === 2, '4 trocas entre 2 armazens = 2 chamadas ao servidor (veio ' + hubCalls + ')');
-ok(txt('#wh-label') === 'Berlin', 'o memo serve o armazem certo, nao o ultimo carregado');
+for (const p of ['next10days', 'past10days', 'today']) {
+  window.setPeriod(p);
+  await wait(30);
+}
+ok(serverCalls === 0, '4 trocas de armazem + 3 de periodo = 0 chamadas ao servidor (veio ' + serverCalls + ')');
+ok(txt('#wh-label') === 'Berlin', 'a fila mostra o armazem selecionado');
+ok($('.segment-btn.active').textContent.includes('Today'), 'o segmento ativo acompanha o filtro local');
 
 // --- 11d. Skeleton na carga: nem data fixa, nem "0" com cara de dado real ---
 ok(!html.includes('Monday, 10 August'), 'data fixa removida do markup (era lida como agendamento real durante a carga)');
 window.google.script.run.withSuccessHandler = function (h) { window.__hSk = h; return window.google.script.run; };
-window.clearScheduleMemo();
-window.loadScheduleData(true);
+window.loadSchedule();   // sem force: o skeleton e da carga inicial, nao do botao Update
 ok(doc.querySelectorAll('#table-rows-container .skeleton-row').length === 4, 'skeleton com 4 linhas fantasma durante a carga');
 ok(doc.querySelectorAll('#table-rows-container .table-row').length === 0, 'skeleton nao conta como linha de dado');
 ok(txt('#cnt-scheduled') === '—', 'contador neutro na carga: um traco nao e "0 agendamentos"');
 ok(!$('#queue-date-title').querySelector('.sk-bar') && txt('#queue-date-title').length > 3,
    'data do cabecalho vem do relogio no boot, sem esperar o servidor (veio "' + txt('#queue-date-title') + '")');
 ok(!$('#loading-overlay').classList.contains('active'), 'carga da fila nao bloqueia a tela com overlay');
-window.__hSk({ success: true, total: 0, rows: [], summary: { totalRows: 0, byWarehouse: {}, selectedWarehouse: { today: 0, next10days: 0, past10days: 0, otherDates: 0 } } });
+window.__hSk({ success: true, refreshedAt: new Date().toISOString(), total: 0, rows: [] });
 ok(doc.querySelectorAll('#table-rows-container .skeleton-row').length === 0, 'skeleton sai quando o dado chega');
 ok(txt('#cnt-scheduled') === '0', 'contador volta a ser numero depois da resposta');
 window.google.script.run.withSuccessHandler = origSuccess;
