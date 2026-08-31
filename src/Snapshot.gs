@@ -192,10 +192,25 @@ function scheduledRefresh() {
  * REFRESH_HOURS para [7, 11] compra a folga.
  */
 function installRefreshTriggers() {
+    // O aquecimento de 5 em 5 minutos saiu do codigo, mas o TRIGGER dele continua
+    // registrado no projeto apontando para uma funcao que nao existe mais — e falha a
+    // cada 5 minutos ate alguem remover. Limpar aqui e o unico jeito de isso acontecer
+    // sem uma chamada com argumento, que o seletor do editor nao sabe executar.
+    const orfaos = ScriptApp.getProjectTriggers()
+        .filter(t => t.getHandlerFunction() === 'warmHubCache').length;
+    dropTriggers('warmHubCache');
+
     dropTriggers('scheduledRefresh');
     REFRESH_HOURS.forEach(h =>
         ScriptApp.newTrigger('scheduledRefresh').timeBased().everyDays(1).atHour(h).nearMinute(3).create());
-    return 'trigger scheduledRefresh instalado (' + REFRESH_HOURS.join('h e ') + 'h, seg-sex)';
+
+    const msg = 'OK: refresh instalado as ' + REFRESH_HOURS.join('h e ') + 'h, seg-sex' +
+        (orfaos ? ' · ' + orfaos + ' trigger(s) orfao(s) de warmHubCache removido(s)' : '');
+    Logger.log(msg);
+    // Rodado pelo menu da planilha o retorno se perde; um alerta e o unico retorno que
+    // o operador ve.
+    try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
+    return msg;
 }
 
 

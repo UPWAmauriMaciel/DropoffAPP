@@ -102,7 +102,7 @@ globalThis.UrlFetchApp = {
 };
 
 const code = gsSource();
-new Function(code + '\n;Object.assign(globalThis,{getMetabaseData,runSelfChecks,matchesWarehouse,rowDateIso,reviewUrlFor,dayFolderName,fetchHubDataUncached,logDropoffToSheet,SHEET_HEADERS,readProcessedIds,collectSheetGarbage,parseSheetStamp,WAREHOUSES,WAREHOUSE_MAP,normStr,getScheduleSnapshot,refreshSnapshot,scheduledRefresh,normalizeCardRows,getSavedSnapshot,REFRESH_HOURS,SNAPSHOT_FILE});')();
+new Function(code + '\n;Object.assign(globalThis,{getMetabaseData,runSelfChecks,matchesWarehouse,rowDateIso,reviewUrlFor,dayFolderName,fetchHubDataUncached,logDropoffToSheet,SHEET_HEADERS,readProcessedIds,collectSheetGarbage,parseSheetStamp,WAREHOUSES,WAREHOUSE_MAP,normStr,installRefreshTriggers,getScheduleSnapshot,refreshSnapshot,scheduledRefresh,normalizeCardRows,getSavedSnapshot,REFRESH_HOURS,SNAPSHOT_FILE});')();
 
 let fails = 0;
 const ok = (c, n) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) fails++; };
@@ -337,6 +337,38 @@ globalThis.Date = realDate;
 ok(REFRESH_HOURS.length === 2 && REFRESH_HOURS[1] - REFRESH_HOURS[0] === 4,
    'dois refreshes por dia, o segundo 4h depois do primeiro');
 ok(SNAPSHOT_FILE.indexOf('10495') !== -1, 'o arquivo do snapshot nomeia o card');
+
+// --- instalador dos triggers: idempotente e limpa o aquecimento morto ---
+// dropTriggers('warmHubCache') nao pode ser rodado do editor (o seletor so executa
+// funcao sem argumento), entao a limpeza tem que morar dentro do instalador.
+let triggers = [];
+const mkTrigger = (fn) => ({ getHandlerFunction: () => fn });
+globalThis.ScriptApp = {
+  getOAuthToken: () => 'tok',
+  getProjectTriggers: () => triggers.slice(),
+  deleteTrigger: (t) => { triggers = triggers.filter(x => x !== t); },
+  newTrigger: (fn) => ({ timeBased: () => ({
+    everyDays: () => ({ atHour: (h) => ({ nearMinute: () => ({
+      create: () => { triggers.push(Object.assign(mkTrigger(fn), { hour: h })); } }) }) }) }) })
+};
+let alerta = '';
+globalThis.SpreadsheetApp = Object.assign({}, globalThis.SpreadsheetApp, {
+  getUi: () => ({ alert: (m) => { alerta = m; } })
+});
+
+triggers = [mkTrigger('warmHubCache'), mkTrigger('warmHubCache'), mkTrigger('installGcTrigger')];
+installRefreshTriggers();
+ok(!triggers.some(t => t.getHandlerFunction() === 'warmHubCache'),
+   'instalador remove o trigger orfao do aquecimento (senao falha a cada 5 min para sempre)');
+ok(triggers.filter(t => t.getHandlerFunction() === 'scheduledRefresh').length === 2,
+   'instala exatamente 2 refreshes (veio ' + triggers.filter(t => t.getHandlerFunction() === 'scheduledRefresh').length + ')');
+ok(triggers.some(t => t.hour === 8) && triggers.some(t => t.hour === 12), 'nos horarios de REFRESH_HOURS');
+ok(triggers.some(t => t.getHandlerFunction() === 'installGcTrigger'), 'nao encosta em trigger de outro handler');
+ok(alerta.indexOf('OK') === 0, 'avisa o operador que rodou (pelo menu o retorno se perde)');
+
+installRefreshTriggers();
+ok(triggers.filter(t => t.getHandlerFunction() === 'scheduledRefresh').length === 2,
+   'rodar duas vezes NAO duplica os triggers (duplicar dobraria a query no Metabase)');
 
 // As duas formas de card do Metabase tem que produzir a MESMA linha.
 const chaves = Object.keys(PAYLOAD[0]);
