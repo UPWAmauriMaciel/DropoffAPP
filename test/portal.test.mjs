@@ -274,8 +274,10 @@ window.__h2({ error: 'The Gateway returned an HTML login page instead of JSON' }
 ok(doc.querySelectorAll('#table-rows-container .table-row').length === 3, 'refresh que falha NAO descarta a fila carregada');
 ok($('#queue-feedback').style.display === 'none', 'sem card de erro por cima de dado bom');
 ok($('#refresh-btn').classList.contains('failed'), 'botao entra em estado de falha');
-ok($('#refresh-btn').textContent.trim() === 'Retry', 'botao vira Retry (a falha precisa ser visivel, nao so no tooltip)');
-ok($('#refresh-btn').title.includes('login'), 'tooltip carrega o motivo real da falha');
+ok($('#refresh-label').textContent.trim() === 'Retry', 'botao vira Retry (a falha precisa ser visivel, nao so no tooltip)');
+ok($('#refresh-tip-time').textContent.includes('login'), 'tooltip carrega o motivo real da falha');
+ok($('#refresh-tip').classList.contains('failed'), 'tooltip entra no layout de falha');
+ok($('#refresh-btn').getAttribute('aria-label').includes('login'), 'aria-label repete o motivo para leitor de tela');
 
 // --- 11a2. Falha SEM nada carregado: erro visivel, zero dados inventados ---
 window.google.script.run.withSuccessHandler = function (h) { window.__h3 = h; return window.google.script.run; };
@@ -360,6 +362,38 @@ ok(/line-height:\s*1\b/.test(hdr[1]), 'line-height 1: sem isso o flex centraliza
 ok(/color:\s*var\(--blue-500\)/.test(hdr[1]), 'azul da marca pelo token');
 ok(!/#4733FF/i.test(hdr[1]), 'sem hex solto: o token e o mesmo valor que o fill do wordmark');
 ok(/font-family:\s*'Inter'/.test(hdr[1]), 'pilha de fonte declarada na propria regra');
+
+// --- 11e. Botao Update e o tooltip da hora ---
+// O botao tem que ser notado sem competir com o segmented-control ao lado: azul e a cor
+// de "ativo" daquele controle, e usar azul aqui faria os dois brigarem por atencao.
+const btnCss = (html.match(/\.refresh-btn\s*\{[^}]*\}/) || [''])[0];
+ok(!!btnCss, 'regra .refresh-btn existe');
+ok(/var\(--ink-300\)/.test(btnCss), 'borda pelo token, na mesma familia da search-box');
+ok(!/--blue-500/.test(btnCss), 'Update NAO usa o azul de "ativo" do segmented-control');
+ok(/height:\s*44px/.test(btnCss), '44px: mesma altura da search-box, senao a toolbar desalinha');
+
+const tipCss = (html.match(/\.refresh-tip\s*\{[^}]*\}/) || [''])[0];
+ok(/var\(--ink-900\)/.test(tipCss), 'tooltip usa a superficie escura do design system');
+ok(/pointer-events:\s*none/.test(tipCss), 'tooltip nao pode roubar o clique do botao');
+
+const timeCss = (html.match(/\.refresh-tip-time\s*\{[^}]*\}/) || [''])[0];
+const hintCss = (html.match(/\.refresh-tip-label,[\s\S]*?\.refresh-tip-hint\s*\{[^}]*\}/) || [''])[0];
+const px = (css) => parseFloat((css.match(/font-size:\s*([\d.]+)px/) || [0, 0])[1]);
+ok(px(timeCss) > px(hintCss), 'a HORA e a linha em destaque, maior que os rotulos (' + px(timeCss) + ' vs ' + px(hintCss) + ')');
+ok(/font-weight:\s*700/.test(timeCss), 'hora em peso 700');
+ok(/tabular-nums/.test(timeCss), 'numeros tabulares: sem isso a hora muda de largura a cada refresh');
+ok(/focus-visible/.test(html), 'tooltip aparece tambem no foco de teclado, nao so no hover');
+
+// A hora mostrada e a do snapshot que o servidor carimbou.
+window.google.script.run.withSuccessHandler = origSuccess;
+await wait(250);
+window.loadSchedule();
+await wait(250);
+const agora = new Date();
+const hhmm = String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0');
+ok(txt('#refresh-tip-time') === hhmm, 'tooltip mostra a hora do snapshot (veio "' + txt('#refresh-tip-time') + '")');
+ok(txt('#refresh-tip-label') === 'Last updated', 'rotulo diz o que o numero e');
+ok(txt('#refresh-label').trim() === 'Update', 'botao volta a Update depois de um refresh bom');
 
 // --- 12. Sem cores fora do design system ---
 ok(!html.includes('#FFFBEB') && !html.includes('#FCD34D') && !html.includes('#92400E'), 'banner ambar removido');
