@@ -336,3 +336,42 @@ function runSelfChecks() {
     Logger.log('runSelfChecks: OK');
     return 'OK';
 }
+
+
+/**
+ * Cronometra uma abertura REAL do portal: chama getScheduleSnapshot() exatamente como
+ * o cliente chama no boot, e devolve quanto tempo cada etapa levou.
+ *
+ * Existe porque "o JSON não é tão grande para causar esse delay todo" é a pergunta
+ * certa — supor que era o tamanho do payload, sem medir, seria só outro chute. Isto
+ * mede de verdade: cache vs Drive vs montagem das linhas, cada um com seu tempo.
+ *
+ * Roda com o cache e o Drive no estado em que JÁ ESTÃO — de propósito. Forçar um
+ * refresh aqui mediria o caminho do botão Update, não o de uma abertura normal.
+ */
+function diagnoseSnapshotTiming() {
+    const t0 = Date.now();
+    const res = getScheduleSnapshot();
+    const totalMs = Date.now() - t0;
+
+    const lines = [
+        'getScheduleSnapshot(): ' + totalMs + 'ms no servidor',
+        '',
+        res.error ? 'ERRO: ' + res.error : res.total + ' linha(s) no card',
+        '',
+        'Quebra por etapa (cache/Drive vs montagem das linhas) foi para o Logger —',
+        'abra o editor › ícone de relógio (Executions) › a execução mais recente desta',
+        'função para ver "snapshot: cache HIT/MISS" e "getScheduleSnapshot: ...".',
+        '',
+        'O tempo que o OPERADOR sente é maior que este número: em cima disto soma o',
+        'round trip do google.script.run (o canal do Apps Script até o navegador),',
+        'que este diagnóstico não mede porque roda dentro do próprio servidor.'
+    ];
+
+    const text = lines.join('\n');
+    Logger.log(text);
+    try {
+        SpreadsheetApp.getUi().alert('Tempo de carga da fila', text, SpreadsheetApp.getUi().ButtonSet.OK);
+    } catch (e) { /* editor: o Logger já tem tudo */ }
+    return text;
+}

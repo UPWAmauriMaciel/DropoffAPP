@@ -102,7 +102,7 @@ globalThis.UrlFetchApp = {
 };
 
 const code = gsSource();
-new Function(code + '\n;Object.assign(globalThis,{getMetabaseData,runSelfChecks,matchesWarehouse,rowDateIso,reviewUrlFor,dayFolderName,fetchHubDataUncached,logDropoffToSheet,SHEET_HEADERS,readProcessedIds,collectSheetGarbage,parseSheetStamp,WAREHOUSES,WAREHOUSE_MAP,normStr,installRefreshTriggers,getScheduleSnapshot,refreshSnapshot,scheduledRefresh,normalizeCardRows,getSavedSnapshot,REFRESH_HOURS,SNAPSHOT_FILE});')();
+new Function(code + '\n;Object.assign(globalThis,{getMetabaseData,runSelfChecks,matchesWarehouse,rowDateIso,reviewUrlFor,dayFolderName,fetchHubDataUncached,logDropoffToSheet,SHEET_HEADERS,readProcessedIds,collectSheetGarbage,parseSheetStamp,WAREHOUSES,WAREHOUSE_MAP,normStr,diagnoseSnapshotTiming,installRefreshTriggers,getScheduleSnapshot,refreshSnapshot,scheduledRefresh,normalizeCardRows,getSavedSnapshot,REFRESH_HOURS,SNAPSHOT_FILE});')();
 
 let fails = 0;
 const ok = (c, n) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) fails++; };
@@ -253,6 +253,16 @@ ok(idCols === 1, 'coluna de IDs lida UMA vez na troca de periodo: a de readProce
 grid.push(['12.08.2026', 'RK2BB2', 'X', 'Y', '', '', '', '', '', '{}', 'a@upway.shop']);
 CacheService.getScriptCache().remove('dropoff_processed_v1');
 ok(readProcessedIds().has('RK2BB2'), 'invalidar o cache faz o novo arquivado aparecer na hora');
+
+// --- diagnoseSnapshotTiming: nao pode chamar o hub, so mede o caminho normal ---
+globalThis.__cache.clear(); globalThis.__drive.clear();
+refreshSnapshot();                                 // deixa um snapshot pronto, como um dia real
+globalThis.__cache.clear();                         // cache frio: forca o caminho "leu do Drive"
+hubCalls = 0;
+const relatorio = diagnoseSnapshotTiming();
+ok(hubCalls === 0, 'diagnostico de tempo NAO chama o Metabase (veio ' + hubCalls + ' chamada(s))');
+ok(/getScheduleSnapshot\(\): \d+ms/.test(relatorio), 'relatorio traz o tempo total no servidor');
+ok(/\d+ linha\(s\) no card/.test(relatorio), 'relatorio conta quantas linhas vieram');
 
 // --- garbage collector: poda o Snapshot velho e NAO toca na trilha de auditoria ---
 const gcDate = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear() + ' 09:00'; };

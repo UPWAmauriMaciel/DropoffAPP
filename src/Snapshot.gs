@@ -42,22 +42,35 @@ function snapshotFile() {
  * risco de chamar a si mesmo.
  */
 function readStoredSnapshot() {
+    const t0 = Date.now();
     const cache = CacheService.getScriptCache();
 
     const hit = cacheGetChunked(cache, SNAPSHOT_CACHE_KEY);
     if (hit) {
-        try { return JSON.parse(hit); } catch (e) { cache.remove(SNAPSHOT_CACHE_KEY); }
+        try {
+            const snap = JSON.parse(hit);
+            console.log('snapshot: cache HIT, ' + hit.length + ' bytes, ' + (Date.now() - t0) + 'ms');
+            return snap;
+        } catch (e) { cache.remove(SNAPSHOT_CACHE_KEY); }
     }
 
+    // Cache frio: cada linha abaixo e uma chamada ao Drive, nao ao Metabase — mas
+    // DriveApp e uma API sincrona com latencia de rede propria, e Shared Drive costuma
+    // ser mais lenta que Meu Drive. Com card grande em varios pedacos de cache, uma
+    // eviccao parcial (ver cacheGetChunked) joga TODA abertura nesse caminho, nao so a
+    // primeira do dia — e e aqui, nao no tamanho do JSON, que o delay pode estar.
     try {
+        const tDrive0 = Date.now();
         const file = snapshotFile();
-        if (!file) return null;
+        if (!file) { console.log('snapshot: cache MISS, sem arquivo no Drive, ' + (Date.now() - t0) + 'ms'); return null; }
 
         const raw = file.getBlob().getDataAsString();
         const snap = JSON.parse(raw);
         if (!snap || !snap.rows) return null;
 
         cachePutChunked(cache, SNAPSHOT_CACHE_KEY, raw, SNAPSHOT_CACHE_TTL);
+        console.log('snapshot: cache MISS, leu do Drive: ' + (Date.now() - tDrive0) + 'ms de RPC do Drive, ' +
+            raw.length + ' bytes, ' + (Date.now() - t0) + 'ms total');
         return snap;
     } catch (e) {
         // Arquivo ilegivel ou Drive fora: tratado como "nao existe snapshot", que leva
@@ -135,10 +148,13 @@ function loadSnapshot() {
  * linha. Esse vem sob demanda, em getSavedSnapshot().
  */
 function getScheduleSnapshot() {
+    const t0 = Date.now();
     const snap = loadSnapshot();
+    const tSnap = Date.now();
     if (snap.error) return { error: snap.error };
 
     const processed = readProcessedIds();
+    const tProcessed = Date.now();
     const rows = [];
 
     for (let i = 0; i < snap.rows.length; i++) {
@@ -146,6 +162,11 @@ function getScheduleSnapshot() {
         if (!bikeId || bikeId === 'N/A') continue;
         rows.push(scheduleRow(snap.rows[i], bikeId, processed.has(bikeId)));
     }
+    const tRows = Date.now();
+
+    console.log('getScheduleSnapshot: snapshot=' + (tSnap - t0) + 'ms · processedIds=' + (tProcessed - tSnap) +
+        'ms · montagem das ' + rows.length + ' linhas=' + (tRows - tProcessed) + 'ms · TOTAL NO SERVIDOR=' +
+        (tRows - t0) + 'ms (o tempo no navegador ainda soma o round trip do google.script.run por cima disto)');
 
     return {
         success: true,

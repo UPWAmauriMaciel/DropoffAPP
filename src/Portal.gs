@@ -91,6 +91,7 @@ function onOpen() {
         .addSeparator()
         .addItem('🔌 Test Gateway connection', 'diagnoseGateway')
         .addItem('🔎 Inspect card rows', 'diagnoseRows')
+        .addItem('⏱️ Time the queue load', 'diagnoseSnapshotTiming')
         .addItem('🧹 Reset sheet formatting', 'resetSheetFormatting')
         .addItem('⏰ Install the daily refreshes', 'installRefreshTriggers')
         .addToUi();
